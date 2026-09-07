@@ -10,6 +10,7 @@ from app.core.exceptions import (
     ProjectNotFoundError,
     TaskNotFoundError,
 )
+from app.modules.project_members.repository import ProjectMemberRepository
 from app.modules.projects.repository import ProjectRepository
 from app.modules.tasks.models import Task, TaskPriority, TaskStatus
 from app.modules.tasks.repository import TaskRepository
@@ -22,13 +23,14 @@ from app.modules.tasks.schemas import (
 
 
 class TaskService:
-    """Coordinates task CRUD with project-ownership enforcement."""
+    """Coordinates task CRUD with membership-based authorization."""
 
     def __init__(self, session: AsyncSession, settings: Settings) -> None:
         self._session = session
         self._settings = settings
         self._tasks = TaskRepository(session)
         self._projects = ProjectRepository(session)
+        self._members = ProjectMemberRepository(session)
 
     async def list_tasks(
         self,
@@ -41,9 +43,9 @@ class TaskService:
         priority: TaskPriority | None = None,
         search: str | None = None,
     ) -> PaginatedTasksResponse:
-        """Return a paginated list of tasks for a project the user owns."""
+        """Return a paginated list of tasks for a project the user can access."""
 
-        await self._verify_project_ownership(user_id, project_id)
+        await self._verify_project_access(user_id, project_id)
 
         tasks, total = await self._tasks.get_project_tasks(
             project_id=project_id,
@@ -69,9 +71,9 @@ class TaskService:
         project_id: UUID,
         payload: TaskCreateRequest,
     ) -> TaskResponse:
-        """Create a new task in a project the user owns."""
+        """Create a new task in a project the user can access."""
 
-        await self._verify_project_ownership(user_id, project_id)
+        await self._verify_project_access(user_id, project_id)
 
         task = await self._tasks.create(
             project_id=project_id,
@@ -89,7 +91,7 @@ class TaskService:
         user_id: UUID,
         task_id: UUID,
     ) -> TaskResponse:
-        """Return a task if the calling user owns its parent project."""
+        """Return a task if the calling user can access its parent project."""
 
         task = await self._get_accessible_task(user_id, task_id)
         return TaskResponse.model_validate(task)
@@ -100,7 +102,7 @@ class TaskService:
         task_id: UUID,
         payload: TaskUpdateRequest,
     ) -> TaskResponse:
-        """Update fields on a task whose parent project the user owns."""
+        """Update fields on a task whose parent project the user can access."""
 
         task = await self._get_accessible_task(user_id, task_id)
 
@@ -120,35 +122,41 @@ class TaskService:
         user_id: UUID,
         task_id: UUID,
     ) -> None:
-        """Delete a task if the calling user owns its parent project."""
+        """Delete a task if the calling user can access its parent project."""
 
         task = await self._get_accessible_task(user_id, task_id)
         await self._tasks.delete(task)
         await self._session.commit()
 
-    async def _verify_project_ownership(self, user_id: UUID, project_id: UUID) -> None:
-        """Fetch a project and verify ownership.
+    async def _verify_project_access(
+        self, user_id: UUID, project_id: UUID
+    ) -> None:
+        """Verify project exists and the user is a member.
 
         Raises ProjectNotFoundError (404) if the project does not exist and
-        ProjectAccessDeniedError (403) if it belongs to another user.
+        ProjectAccessDeniedError (403) if the user is not a member.
         """
 
         project = await self._projects.get_by_id(project_id)
         if project is None:
             raise ProjectNotFoundError()
-        if project.owner_id != user_id:
+
+        membership = await self._members.get_by_project_and_user(
+            project_id, user_id
+        )
+        if membership is None:
             raise ProjectAccessDeniedError()
 
     async def _get_accessible_task(self, user_id: UUID, task_id: UUID) -> Task:
-        """Fetch a task and verify the user owns its parent project.
+        """Fetch a task and verify the user can access its parent project.
 
         Raises TaskNotFoundError (404) if the task does not exist,
         ProjectNotFoundError (404) if the parent project is gone, and
-        ProjectAccessDeniedError (403) if the project belongs to another user.
+        ProjectAccessDeniedError (403) if the user is not a member.
         """
 
         task = await self._tasks.get_by_id(task_id)
         if task is None:
             raise TaskNotFoundError()
-        await self._verify_project_ownership(user_id, task.project_id)
+        await self._verify_project_access(user_id, task.project_id)
         return task

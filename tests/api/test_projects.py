@@ -202,7 +202,7 @@ class TestListProjects:
 
         assert response.status_code == 200
         mock_service.list_projects.assert_called_once_with(
-            owner_id=_OWNER_ID, page=2, page_size=10, search="test", is_active=True
+            user_id=_OWNER_ID, page=2, page_size=10, search="test", is_active=True
         )
 
     @pytest.mark.asyncio

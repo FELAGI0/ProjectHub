@@ -33,8 +33,8 @@ def get_project_service(
     response_model=PaginatedProjectsResponse,
     summary="List user's projects",
     description=(
-        "Return a paginated list of projects owned by the authenticated user."
-        " Supports optional search and active-status filtering."
+        "Return a paginated list of projects where the authenticated user is a"
+        " member. Supports optional search and active-status filtering."
     ),
     responses={
         status.HTTP_401_UNAUTHORIZED: {
@@ -50,10 +50,10 @@ async def list_projects(
     search: str | None = Query(default=None, max_length=100),
     is_active: bool | None = None,
 ) -> PaginatedProjectsResponse:
-    """List projects owned by the current user."""
+    """List projects the current user is a member of."""
 
     return await service.list_projects(
-        owner_id=current_user.id,
+        user_id=current_user.id,
         page=page,
         page_size=page_size,
         search=search,
@@ -90,13 +90,13 @@ async def create_project(
     "/{project_id}",
     response_model=ProjectResponse,
     summary="Get a project by ID",
-    description="Return a single project if the authenticated user owns it.",
+    description="Return a single project if the authenticated user is a member.",
     responses={
         status.HTTP_401_UNAUTHORIZED: {
             "description": "Missing or invalid authentication token."
         },
         status.HTTP_403_FORBIDDEN: {
-            "description": "Project exists but is not owned by the caller."
+            "description": "Caller is not a member of this project."
         },
         status.HTTP_404_NOT_FOUND: {"description": "Project not found."},
     },
@@ -115,13 +115,15 @@ async def get_project(
     "/{project_id}",
     response_model=ProjectResponse,
     summary="Update a project",
-    description="Partially update a project. Only the owner can update their project.",
+    description=(
+        "Partially update a project. Requires ADMIN or OWNER role."
+    ),
     responses={
         status.HTTP_401_UNAUTHORIZED: {
             "description": "Missing or invalid authentication token."
         },
         status.HTTP_403_FORBIDDEN: {
-            "description": "Project exists but is not owned by the caller."
+            "description": "Caller does not have sufficient permissions."
         },
         status.HTTP_404_NOT_FOUND: {"description": "Project not found."},
         status.HTTP_422_UNPROCESSABLE_ENTITY: {
@@ -145,14 +147,14 @@ async def update_project(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a project",
     description=(
-        "Delete a project permanently. Only the owner can delete their project."
+        "Delete a project permanently. Only the OWNER can delete their project."
     ),
     responses={
         status.HTTP_401_UNAUTHORIZED: {
             "description": "Missing or invalid authentication token."
         },
         status.HTTP_403_FORBIDDEN: {
-            "description": "Project exists but is not owned by the caller."
+            "description": "Caller does not have sufficient permissions."
         },
         status.HTTP_404_NOT_FOUND: {"description": "Project not found."},
     },

@@ -59,3 +59,24 @@ class TaskNotFoundError(DomainError):
 
     status_code = 404
     detail = "Task was not found."
+
+
+class MemberNotFoundError(DomainError):
+    """Raised when a project member is not found."""
+
+    status_code = 404
+    detail = "Member was not found."
+
+
+class MemberAlreadyExistsError(DomainError):
+    """Raised when a user is already a member of a project."""
+
+    status_code = 409
+    detail = "User is already a member of this project."
+
+
+class InsufficientPermissionError(DomainError):
+    """Raised when a user lacks the required role level for an action."""
+
+    status_code = 403
+    detail = "You do not have sufficient permissions for this action."

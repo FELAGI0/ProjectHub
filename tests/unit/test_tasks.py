@@ -1,7 +1,7 @@
 """Unit tests for the TaskService layer.
 
-Mocks the TaskRepository and ProjectRepository to test business logic and
-ownership enforcement in isolation from the database.
+Mocks TaskRepository, ProjectRepository and ProjectMemberRepository to test
+business logic and membership-based authorization in isolation.
 """
 
 from datetime import UTC, datetime
@@ -15,6 +15,7 @@ from app.core.exceptions import (
     ProjectNotFoundError,
     TaskNotFoundError,
 )
+from app.modules.project_members.models import ProjectMember, ProjectRole
 from app.modules.projects.models import Project
 from app.modules.tasks.models import Task, TaskPriority, TaskStatus
 from app.modules.tasks.repository import TaskRepository
@@ -31,16 +32,26 @@ _PROJECT_ID = uuid4()
 _TASK_ID = uuid4()
 
 
-def _make_project(owner_id: UUID | None = None) -> Project:
+def _make_project() -> Project:
     """Build a Project ORM instance for use as a mock return value."""
     return Project(
         id=_PROJECT_ID,
-        owner_id=owner_id or _OWNER_ID,
         name="Test Project",
         description="A description",
         is_active=True,
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
+    )
+
+
+def _make_member(
+    role: ProjectRole = ProjectRole.OWNER,
+) -> ProjectMember:
+    """Build a ProjectMember ORM instance for use as a mock return value."""
+    return ProjectMember(
+        project_id=_PROJECT_ID,
+        user_id=_OWNER_ID,
+        role=role,
     )
 
 
@@ -76,20 +87,29 @@ def mock_task_repo():
 
 @pytest.fixture
 def mock_project_repo():
-    """A mock ProjectRepository for ownership verification."""
+    """A mock ProjectRepository for project existence lookups."""
     repo = mock.AsyncMock()
     repo.get_by_id.return_value = None
     return repo
 
 
 @pytest.fixture
-def service(mock_task_repo, mock_project_repo):
+def mock_member_repo():
+    """A mock ProjectMemberRepository for membership checks."""
+    repo = mock.AsyncMock()
+    repo.get_by_project_and_user.return_value = None
+    return repo
+
+
+@pytest.fixture
+def service(mock_task_repo, mock_project_repo, mock_member_repo):
     """A TaskService with mocked repositories and session."""
     session = mock.AsyncMock()
     settings = mock.MagicMock()
     svc = TaskService(session, settings)
     svc._tasks = mock_task_repo
     svc._projects = mock_project_repo
+    svc._members = mock_member_repo
     svc._session = session
     return svc
 
@@ -100,12 +120,15 @@ def service(mock_task_repo, mock_project_repo):
 
 
 class TestListTasks:
-    """list_tasks verifies project ownership then delegates to the repository."""
+    """list_tasks verifies project membership then delegates to the repository."""
 
     @pytest.mark.asyncio
-    async def test_empty(self, service, mock_project_repo, mock_task_repo) -> None:
+    async def test_empty(
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
+    ) -> None:
         """When no tasks exist, the response has an empty items list."""
         mock_project_repo.get_by_id.return_value = _make_project()
+        mock_member_repo.get_by_project_and_user.return_value = _make_member()
         mock_task_repo.get_project_tasks.return_value = ([], 0)
 
         result = await service.list_tasks(user_id=_OWNER_ID, project_id=_PROJECT_ID)
@@ -116,10 +139,11 @@ class TestListTasks:
 
     @pytest.mark.asyncio
     async def test_paginated_result(
-        self, service, mock_project_repo, mock_task_repo
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
         """A single task is returned with correct pagination metadata."""
         mock_project_repo.get_by_id.return_value = _make_project()
+        mock_member_repo.get_by_project_and_user.return_value = _make_member()
         task = _make_task()
         mock_task_repo.get_project_tasks.return_value = ([task], 1)
 
@@ -135,10 +159,11 @@ class TestListTasks:
 
     @pytest.mark.asyncio
     async def test_forwards_filters(
-        self, service, mock_project_repo, mock_task_repo
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
         """Filters (status, priority, search) are forwarded to the repository."""
         mock_project_repo.get_by_id.return_value = _make_project()
+        mock_member_repo.get_by_project_and_user.return_value = _make_member()
 
         await service.list_tasks(
             user_id=_OWNER_ID,
@@ -159,7 +184,7 @@ class TestListTasks:
 
     @pytest.mark.asyncio
     async def test_project_not_found(
-        self, service, mock_project_repo, mock_task_repo
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
         """ProjectNotFoundError is raised when the project does not exist."""
         mock_project_repo.get_by_id.return_value = None
@@ -171,10 +196,11 @@ class TestListTasks:
 
     @pytest.mark.asyncio
     async def test_project_access_denied(
-        self, service, mock_project_repo, mock_task_repo
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
-        """ProjectAccessDeniedError is raised for another user's project."""
-        mock_project_repo.get_by_id.return_value = _make_project(owner_id=_OTHER_ID)
+        """ProjectAccessDeniedError is raised for a non-member."""
+        mock_project_repo.get_by_id.return_value = _make_project()
+        mock_member_repo.get_by_project_and_user.return_value = None
 
         with pytest.raises(ProjectAccessDeniedError):
             await service.list_tasks(user_id=_OWNER_ID, project_id=_PROJECT_ID)
@@ -188,14 +214,15 @@ class TestListTasks:
 
 
 class TestCreateTask:
-    """create_task verifies project ownership, creates, and commits."""
+    """create_task verifies project membership, creates, and commits."""
 
     @pytest.mark.asyncio
     async def test_creates_and_commits(
-        self, service, mock_project_repo, mock_task_repo
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
-        """Owned project task is created and committed."""
+        """A valid request creates a task and commits the session."""
         mock_project_repo.get_by_id.return_value = _make_project()
+        mock_member_repo.get_by_project_and_user.return_value = _make_member()
         payload = TaskCreateRequest(
             title="New Task",
             description="Details",
@@ -212,7 +239,7 @@ class TestCreateTask:
 
     @pytest.mark.asyncio
     async def test_project_not_found(
-        self, service, mock_project_repo, mock_task_repo
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
         """ProjectNotFoundError is raised when the project does not exist."""
         mock_project_repo.get_by_id.return_value = None
@@ -225,10 +252,11 @@ class TestCreateTask:
 
     @pytest.mark.asyncio
     async def test_project_access_denied(
-        self, service, mock_project_repo, mock_task_repo
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
-        """ProjectAccessDeniedError is raised for another user's project."""
-        mock_project_repo.get_by_id.return_value = _make_project(owner_id=_OTHER_ID)
+        """ProjectAccessDeniedError is raised for a non-member."""
+        mock_project_repo.get_by_id.return_value = _make_project()
+        mock_member_repo.get_by_project_and_user.return_value = None
         payload = TaskCreateRequest(title="New Task")
 
         with pytest.raises(ProjectAccessDeniedError):
@@ -243,14 +271,17 @@ class TestCreateTask:
 
 
 class TestGetTask:
-    """get_task returns the task when the user owns the parent project."""
+    """get_task returns the task when the user is a member of the parent project."""
 
     @pytest.mark.asyncio
-    async def test_success(self, service, mock_project_repo, mock_task_repo) -> None:
-        """Owned task is returned as a validated response."""
+    async def test_success(
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
+    ) -> None:
+        """Task is returned as a validated response."""
         task = _make_task()
         mock_task_repo.get_by_id.return_value = task
         mock_project_repo.get_by_id.return_value = _make_project()
+        mock_member_repo.get_by_project_and_user.return_value = _make_member()
 
         result = await service.get_task(_OWNER_ID, _TASK_ID)
 
@@ -258,7 +289,9 @@ class TestGetTask:
         assert result.title == "Test Task"
 
     @pytest.mark.asyncio
-    async def test_not_found(self, service, mock_project_repo, mock_task_repo) -> None:
+    async def test_not_found(
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
+    ) -> None:
         """TaskNotFoundError is raised when the task does not exist."""
         mock_task_repo.get_by_id.return_value = None
 
@@ -267,7 +300,7 @@ class TestGetTask:
 
     @pytest.mark.asyncio
     async def test_project_not_found(
-        self, service, mock_project_repo, mock_task_repo
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
         """ProjectNotFoundError is raised when the parent project is gone."""
         task = _make_task()
@@ -279,12 +312,13 @@ class TestGetTask:
 
     @pytest.mark.asyncio
     async def test_access_denied(
-        self, service, mock_project_repo, mock_task_repo
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
-        """ProjectAccessDeniedError is raised for another user's project."""
+        """ProjectAccessDeniedError is raised for a non-member."""
         task = _make_task()
         mock_task_repo.get_by_id.return_value = task
-        mock_project_repo.get_by_id.return_value = _make_project(owner_id=_OTHER_ID)
+        mock_project_repo.get_by_id.return_value = _make_project()
+        mock_member_repo.get_by_project_and_user.return_value = None
 
         with pytest.raises(ProjectAccessDeniedError):
             await service.get_task(_OWNER_ID, _TASK_ID)
@@ -296,16 +330,17 @@ class TestGetTask:
 
 
 class TestUpdateTask:
-    """update_task modifies fields and commits when ownership is verified."""
+    """update_task modifies fields and commits when membership is verified."""
 
     @pytest.mark.asyncio
     async def test_updates_fields(
-        self, service, mock_project_repo, mock_task_repo
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
-        """Owned task fields are updated and committed."""
+        """Task fields are updated and committed."""
         task = _make_task()
         mock_task_repo.get_by_id.return_value = task
         mock_project_repo.get_by_id.return_value = _make_project()
+        mock_member_repo.get_by_project_and_user.return_value = _make_member()
         payload = TaskUpdateRequest(title="Updated", status=TaskStatus.DONE)
 
         await service.update_task(_OWNER_ID, _TASK_ID, payload)
@@ -321,7 +356,9 @@ class TestUpdateTask:
         service._session.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_not_found(self, service, mock_project_repo, mock_task_repo) -> None:
+    async def test_not_found(
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
+    ) -> None:
         """TaskNotFoundError is raised when the task does not exist."""
         mock_task_repo.get_by_id.return_value = None
 
@@ -330,12 +367,13 @@ class TestUpdateTask:
 
     @pytest.mark.asyncio
     async def test_access_denied(
-        self, service, mock_project_repo, mock_task_repo
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
-        """ProjectAccessDeniedError is raised for another user's project."""
+        """ProjectAccessDeniedError is raised for a non-member."""
         task = _make_task()
         mock_task_repo.get_by_id.return_value = task
-        mock_project_repo.get_by_id.return_value = _make_project(owner_id=_OTHER_ID)
+        mock_project_repo.get_by_id.return_value = _make_project()
+        mock_member_repo.get_by_project_and_user.return_value = None
 
         with pytest.raises(ProjectAccessDeniedError):
             await service.update_task(_OWNER_ID, _TASK_ID, TaskUpdateRequest())
@@ -347,16 +385,17 @@ class TestUpdateTask:
 
 
 class TestDeleteTask:
-    """delete_task removes a task when ownership is verified."""
+    """delete_task removes a task when membership is verified."""
 
     @pytest.mark.asyncio
     async def test_deletes_and_commits(
-        self, service, mock_project_repo, mock_task_repo
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
-        """Owned task is deleted and the session is committed."""
+        """Task is deleted and the session is committed."""
         task = _make_task()
         mock_task_repo.get_by_id.return_value = task
         mock_project_repo.get_by_id.return_value = _make_project()
+        mock_member_repo.get_by_project_and_user.return_value = _make_member()
 
         await service.delete_task(_OWNER_ID, _TASK_ID)
 
@@ -364,7 +403,9 @@ class TestDeleteTask:
         service._session.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_not_found(self, service, mock_project_repo, mock_task_repo) -> None:
+    async def test_not_found(
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
+    ) -> None:
         """TaskNotFoundError is raised when the task does not exist."""
         mock_task_repo.get_by_id.return_value = None
 
@@ -373,12 +414,13 @@ class TestDeleteTask:
 
     @pytest.mark.asyncio
     async def test_access_denied(
-        self, service, mock_project_repo, mock_task_repo
+        self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
-        """ProjectAccessDeniedError is raised for another user's project."""
+        """ProjectAccessDeniedError is raised for a non-member."""
         task = _make_task()
         mock_task_repo.get_by_id.return_value = task
-        mock_project_repo.get_by_id.return_value = _make_project(owner_id=_OTHER_ID)
+        mock_project_repo.get_by_id.return_value = _make_project()
+        mock_member_repo.get_by_project_and_user.return_value = None
 
         with pytest.raises(ProjectAccessDeniedError):
             await service.delete_task(_OWNER_ID, _TASK_ID)

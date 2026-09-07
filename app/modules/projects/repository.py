@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.project_members.models import ProjectMember
 from app.modules.projects.models import Project
 
 
@@ -13,6 +14,44 @@ class ProjectRepository:
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def get_member_projects(
+        self,
+        *,
+        user_id: UUID,
+        page: int = 1,
+        page_size: int = 20,
+        search: str | None = None,
+        is_active: bool | None = None,
+    ) -> tuple[list[Project], int]:
+        """Return a paginated, filtered list of projects where a user is a member.
+
+        Returns the project list and the total matching count.
+        """
+
+        stmt = (
+            select(Project)
+            .join(ProjectMember, Project.id == ProjectMember.project_id)
+            .where(ProjectMember.user_id == user_id)
+        )
+
+        if search is not None:
+            pattern = f"%{search}%"
+            stmt = stmt.where(Project.name.ilike(pattern))
+        if is_active is not None:
+            stmt = stmt.where(Project.is_active.is_(is_active))
+
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total_result = await self._session.execute(count_stmt)
+        total = total_result.scalar_one()
+
+        stmt = stmt.order_by(Project.created_at.desc())
+        stmt = stmt.offset((page - 1) * page_size).limit(page_size)
+
+        result = await self._session.execute(stmt)
+        projects = list(result.scalars().all())
+
+        return projects, total
 
     async def get_by_id(self, project_id: UUID) -> Project | None:
         """Return a project by its identifier."""

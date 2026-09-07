@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from app.modules.project_members.models import ProjectMember
     from app.modules.projects.models import Project
 
 
@@ -40,6 +41,11 @@ class User(Base):
     projects: Mapped[list["Project"]] = relationship(
         "Project",
         back_populates="owner",
+        cascade="all, delete-orphan",
+    )
+    project_members: Mapped[list["ProjectMember"]] = relationship(
+        "ProjectMember",
+        back_populates="user",
         cascade="all, delete-orphan",
     )
 

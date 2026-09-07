@@ -5,7 +5,9 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
-from app.core.exceptions import ProjectAccessDeniedError, ProjectNotFoundError
+from app.modules.project_members.authorization import require_project_membership
+from app.modules.project_members.models import ProjectRole
+from app.modules.project_members.repository import ProjectMemberRepository
 from app.modules.projects.models import Project
 from app.modules.projects.repository import ProjectRepository
 from app.modules.projects.schemas import (
@@ -17,26 +19,27 @@ from app.modules.projects.schemas import (
 
 
 class ProjectService:
-    """Coordinates project CRUD with ownership enforcement."""
+    """Coordinates project CRUD with membership-based authorization."""
 
     def __init__(self, session: AsyncSession, settings: Settings) -> None:
         self._session = session
         self._settings = settings
         self._projects = ProjectRepository(session)
+        self._members = ProjectMemberRepository(session)
 
     async def list_projects(
         self,
         *,
-        owner_id: UUID,
+        user_id: UUID,
         page: int = 1,
         page_size: int = 20,
         search: str | None = None,
         is_active: bool | None = None,
     ) -> PaginatedProjectsResponse:
-        """Return a paginated list of projects owned by a user."""
+        """Return a paginated list of projects the user is a member of."""
 
-        projects, total = await self._projects.get_owned(
-            owner_id=owner_id,
+        projects, total = await self._projects.get_member_projects(
+            user_id=user_id,
             page=page,
             page_size=page_size,
             search=search,
@@ -57,12 +60,20 @@ class ProjectService:
         owner_id: UUID,
         payload: ProjectCreateRequest,
     ) -> ProjectResponse:
-        """Create a new project owned by the specified user."""
+        """Create a new project owned by the specified user.
+
+        Automatically creates an OWNER membership record for the creator.
+        """
 
         project = await self._projects.create(
             owner_id=owner_id,
             name=payload.name,
             description=payload.description,
+        )
+        await self._members.create(
+            project_id=project.id,
+            user_id=owner_id,
+            role=ProjectRole.OWNER,
         )
         await self._session.commit()
         return ProjectResponse.model_validate(project)
@@ -72,9 +83,9 @@ class ProjectService:
         user_id: UUID,
         project_id: UUID,
     ) -> ProjectResponse:
-        """Return a project if the calling user owns it."""
+        """Return a project if the calling user is a member."""
 
-        project = await self._get_owned_project(user_id, project_id)
+        project = await self._verify_project_access(user_id, project_id)
         return ProjectResponse.model_validate(project)
 
     async def update_project(
@@ -83,9 +94,11 @@ class ProjectService:
         project_id: UUID,
         payload: ProjectUpdateRequest,
     ) -> ProjectResponse:
-        """Update fields on an owned project."""
+        """Update fields on a project. Requires ADMIN or OWNER role."""
 
-        project = await self._get_owned_project(user_id, project_id)
+        project = await self._verify_project_access(
+            user_id, project_id, min_role=ProjectRole.ADMIN
+        )
 
         project = await self._projects.update(
             project,
@@ -101,22 +114,29 @@ class ProjectService:
         user_id: UUID,
         project_id: UUID,
     ) -> None:
-        """Delete a project if the calling user owns it."""
+        """Delete a project. Requires OWNER role."""
 
-        project = await self._get_owned_project(user_id, project_id)
+        await self._verify_project_access(
+            user_id, project_id, min_role=ProjectRole.OWNER
+        )
+        project = await self._projects.get_by_id(project_id)
         await self._projects.delete(project)
         await self._session.commit()
 
-    async def _get_owned_project(self, user_id: UUID, project_id: UUID) -> Project:
-        """Fetch a project and verify ownership.
+    async def _verify_project_access(
+        self,
+        user_id: UUID,
+        project_id: UUID,
+        min_role: ProjectRole | None = None,
+    ) -> Project:
+        """Fetch a project and verify the user has a minimum role.
 
-        Raises ProjectNotFoundError (404) if the project does not exist and
-        ProjectAccessDeniedError (403) if it belongs to another user.
+        Raises ProjectNotFoundError (404) if the project does not exist,
+        ProjectAccessDeniedError (403) if the user is not a member, and
+        InsufficientPermissionError (403) if the user's role is too low.
         """
 
-        project = await self._projects.get_by_id(project_id)
-        if project is None:
-            raise ProjectNotFoundError()
-        if project.owner_id != user_id:
-            raise ProjectAccessDeniedError()
+        project, _ = await require_project_membership(
+            self._projects, self._members, user_id, project_id, min_role
+        )
         return project

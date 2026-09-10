@@ -1,31 +1,115 @@
+# .gitignore for ProjectHub
+
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
 *.so
 .Python
-.venv/
-
-# Tooling
-.mypy_cache/
-.pytest_cache/
-.ruff_cache/
-coverage.xml
-htmlcov/
-
-# Environment and local configuration
-.env
-!/.env.example
-
-# IDEs and operating systems
-.idea/
-.vscode/
-.DS_Store
-Thumbs.db
-
-# Build artifacts
-dist/
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
 *.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Testing
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+htmlcov/
+.hypothesis/
+
+# Type Checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Linting
+.ruff_cache/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+postgres_data/
 
 # Logs
+logs/
 *.log
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Docker
+docker-compose.override.yml
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Backup files
+*.bak
+*.swp
+*.tmp
+
+# Documentation builds
+docs/_build/
+site/
+
+# Project specific
+uploads/
+media/
+staticfiles/
+
+# Claude Code artifacts
+.claude/

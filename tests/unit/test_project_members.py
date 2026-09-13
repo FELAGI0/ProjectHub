@@ -85,6 +85,8 @@ def service(mock_member_repo, mock_project_repo):
     svc._projects = mock_project_repo
     svc._session = session
     return svc
+
+
 # ---------------------------------------------------------------------------
 # list_members
 # ---------------------------------------------------------------------------
@@ -99,9 +101,7 @@ class TestListMembers:
         mock_member_repo.get_by_project_and_user.return_value = _make_member()
         mock_member_repo.get_by_project.return_value = ([], 0)
 
-        result = await service.list_members(
-            user_id=_ACTOR_ID, project_id=_PROJECT_ID
-        )
+        result = await service.list_members(user_id=_ACTOR_ID, project_id=_PROJECT_ID)
 
         assert result.items == []
         assert result.total == 0
@@ -154,9 +154,7 @@ class TestListMembers:
         mock_project_repo.get_by_id.return_value = None
 
         with pytest.raises(ProjectNotFoundError):
-            await service.list_members(
-                user_id=_ACTOR_ID, project_id=_PROJECT_ID
-            )
+            await service.list_members(user_id=_ACTOR_ID, project_id=_PROJECT_ID)
 
     @pytest.mark.asyncio
     async def test_access_denied(
@@ -166,9 +164,7 @@ class TestListMembers:
         mock_member_repo.get_by_project_and_user.return_value = None
 
         with pytest.raises(ProjectAccessDeniedError):
-            await service.list_members(
-                user_id=_OTHER_ID, project_id=_PROJECT_ID
-            )
+            await service.list_members(user_id=_OTHER_ID, project_id=_PROJECT_ID)
 
 
 # ---------------------------------------------------------------------------
@@ -180,9 +176,7 @@ class TestAddMember:
     """add_member requires ADMIN/OWNER and creates a new membership record."""
 
     @pytest.mark.asyncio
-    async def test_success(
-        self, service, mock_member_repo, mock_project_repo
-    ) -> None:
+    async def test_success(self, service, mock_member_repo, mock_project_repo) -> None:
         """Member is created and committed when actor has ADMIN role."""
         mock_member_repo.get_by_project_and_user.side_effect = (
             _make_member(role=ProjectRole.ADMIN),  # actor membership
@@ -255,6 +249,8 @@ class TestAddMember:
                 project_id=_PROJECT_ID,
                 payload=payload,
             )
+
+
 # ---------------------------------------------------------------------------
 # update_member_role
 # ---------------------------------------------------------------------------
@@ -264,9 +260,7 @@ class TestUpdateMemberRole:
     """update_member_role requires OWNER and changes the member's role."""
 
     @pytest.mark.asyncio
-    async def test_success(
-        self, service, mock_member_repo, mock_project_repo
-    ) -> None:
+    async def test_success(self, service, mock_member_repo, mock_project_repo) -> None:
         """Role is updated and committed when actor is OWNER."""
         mock_member_repo.get_by_project_and_user.side_effect = (
             _make_member(role=ProjectRole.OWNER),  # actor

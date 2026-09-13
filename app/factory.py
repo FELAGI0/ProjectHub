@@ -1,5 +1,7 @@
 """FastAPI application factory."""
 
+import logging
+import traceback
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -13,6 +15,8 @@ from app.core.exceptions import DomainError
 from app.core.logging import configure_logging
 from app.db.session import close_database_engine
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -22,9 +26,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await close_database_engine()
 
 
-async def domain_error_handler(_: Request, exc: DomainError) -> JSONResponse:
+async def domain_error_handler(_: Request, exc: Exception) -> JSONResponse:
     """Convert known domain errors into a consistent API response."""
 
+    assert isinstance(exc, DomainError), f"Expected DomainError, got {type(exc)}"
     headers: dict[str, str] = {}
     if exc.status_code == 401:
         headers["WWW-Authenticate"] = "Bearer"
@@ -32,6 +37,18 @@ async def domain_error_handler(_: Request, exc: DomainError) -> JSONResponse:
         status_code=exc.status_code,
         content={"detail": exc.detail},
         headers=headers,
+    )
+
+
+async def generic_exception_handler(_: Request, exc: Exception) -> JSONResponse:
+    """Catch-all handler to log unexpected errors."""
+
+    print(f"ERROR: {type(exc).__name__}: {exc}", flush=True)
+    traceback.print_exc()
+    logger.exception("Unhandled exception occurred", exc_info=exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
     )
 
 
@@ -54,12 +71,13 @@ def create_application() -> FastAPI:
     # CORS middleware configuration
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
     application.add_exception_handler(DomainError, domain_error_handler)
+    application.add_exception_handler(Exception, generic_exception_handler)
     application.include_router(api_v1_router, prefix=settings.api_v1_prefix)
     return application

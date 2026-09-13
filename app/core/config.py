@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = Field(default=15, gt=0)
     jwt_refresh_token_expire_days: int = Field(default=7, gt=0)
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3005",
+    ]
 
 
 @lru_cache

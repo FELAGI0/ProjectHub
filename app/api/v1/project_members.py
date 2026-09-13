@@ -79,7 +79,7 @@ async def list_members(
         status.HTTP_409_CONFLICT: {
             "description": "User is already a member of this project."
         },
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Validation error in request body."
         },
     },
@@ -112,7 +112,7 @@ async def add_member(
             "description": "Caller does not have permission to change roles."
         },
         status.HTTP_404_NOT_FOUND: {"description": "Member not found."},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Validation error in request body."
         },
     },

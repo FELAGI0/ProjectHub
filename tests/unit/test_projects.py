@@ -215,9 +215,7 @@ class TestGetProject:
             await service.get_project(_OWNER_ID, _PROJECT_ID)
 
     @pytest.mark.asyncio
-    async def test_access_denied(
-        self, service, mock_repo, mock_member_repo
-    ) -> None:
+    async def test_access_denied(self, service, mock_repo, mock_member_repo) -> None:
         """ProjectAccessDeniedError is raised for a non-member."""
         project = _make_project()
         mock_repo.get_by_id.return_value = project
@@ -236,9 +234,7 @@ class TestUpdateProject:
     """update_project modifies fields and commits when membership is verified."""
 
     @pytest.mark.asyncio
-    async def test_updates_fields(
-        self, service, mock_repo, mock_member_repo
-    ) -> None:
+    async def test_updates_fields(self, service, mock_repo, mock_member_repo) -> None:
         """Project with ADMIN role is updated and committed."""
         project = _make_project()
         mock_repo.get_by_id.return_value = project
@@ -260,9 +256,7 @@ class TestUpdateProject:
         mock_repo.get_by_id.return_value = None
 
         with pytest.raises(ProjectNotFoundError):
-            await service.update_project(
-                _OWNER_ID, _PROJECT_ID, ProjectUpdateRequest()
-            )
+            await service.update_project(_OWNER_ID, _PROJECT_ID, ProjectUpdateRequest())
 
     @pytest.mark.asyncio
     async def test_access_denied(self, service, mock_repo, mock_member_repo) -> None:
@@ -272,9 +266,7 @@ class TestUpdateProject:
         mock_member_repo.get_by_project_and_user.return_value = None
 
         with pytest.raises(ProjectAccessDeniedError):
-            await service.update_project(
-                _OWNER_ID, _PROJECT_ID, ProjectUpdateRequest()
-            )
+            await service.update_project(_OWNER_ID, _PROJECT_ID, ProjectUpdateRequest())
 
     @pytest.mark.asyncio
     async def test_insufficient_permission(
@@ -288,9 +280,7 @@ class TestUpdateProject:
         )
 
         with pytest.raises(InsufficientPermissionError):
-            await service.update_project(
-                _OWNER_ID, _PROJECT_ID, ProjectUpdateRequest()
-            )
+            await service.update_project(_OWNER_ID, _PROJECT_ID, ProjectUpdateRequest())
 
 
 # ---------------------------------------------------------------------------

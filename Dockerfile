@@ -14,8 +14,11 @@ COPY pyproject.toml README.md ./
 RUN uv sync --no-dev --no-install-project
 
 COPY app ./app
-RUN uv sync --no-dev
+COPY alembic ./alembic
+COPY alembic.ini ./
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh && uv sync --no-dev
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["./entrypoint.sh"]

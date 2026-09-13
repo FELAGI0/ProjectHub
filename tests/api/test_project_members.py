@@ -129,6 +129,8 @@ def mock_no_auth(app):
     )
     yield
     app.dependency_overrides.clear()
+
+
 # ---------------------------------------------------------------------------
 # List Members -- GET /api/v1/projects/{project_id}/members
 # ---------------------------------------------------------------------------
@@ -215,7 +217,12 @@ class TestAddMember:
         assert response.json()["user_id"] == str(_OTHER_ID)
 
     @pytest.mark.asyncio
-    async def test_already_exists(self, client, mock_service, mock_current_user) -> None:
+    async def test_already_exists(
+        self,
+        client,
+        mock_service,
+        mock_current_user,
+    ) -> None:
         """A duplicate member yields 409."""
         from app.core.exceptions import MemberAlreadyExistsError
 
@@ -263,6 +270,8 @@ class TestAddMember:
         )
 
         assert response.status_code == 401
+
+
 # ---------------------------------------------------------------------------
 # Update Member Role -- PATCH /api/v1/projects/{project_id}/members/{user_id}
 # ---------------------------------------------------------------------------

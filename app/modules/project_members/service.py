@@ -108,9 +108,7 @@ class ProjectMemberService:
             actor_id, project_id, min_role=ProjectRole.OWNER
         )
 
-        member = await self._members.get_by_project_and_user(
-            project_id, target_user_id
-        )
+        member = await self._members.get_by_project_and_user(project_id, target_user_id)
         if member is None:
             raise MemberNotFoundError()
 
@@ -148,9 +146,7 @@ class ProjectMemberService:
             actor_membership.role == ProjectRole.ADMIN
             and target_member.role == ProjectRole.ADMIN
         ):
-            raise InsufficientPermissionError(
-                "An admin cannot remove another admin."
-            )
+            raise InsufficientPermissionError("An admin cannot remove another admin.")
 
         await self._members.delete(target_member)
         await self._session.commit()

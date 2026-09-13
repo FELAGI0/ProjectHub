@@ -28,6 +28,7 @@ from app.modules.users.schemas import (
     UserLoginRequest,
     UserRegistrationRequest,
     UserResponse,
+    UserUpdateRequest,
 )
 
 
@@ -111,6 +112,32 @@ class UserService:
         if not user.is_active:
             raise AuthenticationRequiredError("User account is inactive.")
         return user
+
+    async def update_user(
+        self, user_id: UUID, payload: UserUpdateRequest
+    ) -> UserResponse:
+        """Update user profile information."""
+
+        user = await self._users.get_by_id(user_id)
+        if user is None:
+            raise UserNotFoundError()
+
+        if payload.email is not None:
+            email = str(payload.email).lower()
+            existing = await self._users.get_by_email(email)
+            if existing and existing.id != user_id:
+                raise UserAlreadyExistsError("Email address is already in use.")
+            user.email = email
+
+        if payload.username is not None:
+            username = payload.username.lower()
+            existing = await self._users.get_by_username(username)
+            if existing and existing.id != user_id:
+                raise UserAlreadyExistsError("Username is already in use.")
+            user.username = username
+
+        await self._session.flush()
+        return UserResponse.model_validate(user)
 
     async def _build_authentication_response(
         self, user: User

@@ -116,10 +116,9 @@ class ProjectService:
     ) -> None:
         """Delete a project. Requires OWNER role."""
 
-        await self._verify_project_access(
+        project = await self._verify_project_access(
             user_id, project_id, min_role=ProjectRole.OWNER
         )
-        project = await self._projects.get_by_id(project_id)
         await self._projects.delete(project)
         await self._session.commit()
 

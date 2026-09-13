@@ -65,7 +65,7 @@ class TaskRepository:
         description: str | None = None,
         status: TaskStatus = TaskStatus.TODO,
         priority: TaskPriority = TaskPriority.MEDIUM,
-        due_date: datetime | None = None,  # noqa: F821
+        due_date: datetime | None = None,
     ) -> Task:
         """Add a new task to the current transaction."""
 

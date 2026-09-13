@@ -12,6 +12,10 @@ import { TaskCreatePage } from '@/pages/TaskCreatePage'
 import { TaskDetailPage } from '@/pages/TaskDetailPage'
 import { TaskEditPage } from '@/pages/TaskEditPage'
 import { TeamPage } from '@/pages/TeamPage'
+import { AddMemberPage } from '@/pages/AddMemberPage'
+import { EditMemberPage } from '@/pages/EditMemberPage'
+import { UserSettingsPage } from '@/pages/UserSettingsPage'
+import { GlobalTeamPage } from '@/pages/GlobalTeamPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ProtectedRoute } from './ProtectedRoute'
 import { PublicRoute } from './PublicRoute'
@@ -80,6 +84,22 @@ export const router = createBrowserRouter([
       {
         path: 'projects/:projectId/team',
         element: <TeamPage />,
+      },
+      {
+        path: 'projects/:projectId/team/add',
+        element: <AddMemberPage />,
+      },
+      {
+        path: 'projects/:projectId/team/members/:userId/edit',
+        element: <EditMemberPage />,
+      },
+      {
+        path: 'team',
+        element: <GlobalTeamPage />,
+      },
+      {
+        path: 'settings',
+        element: <UserSettingsPage />,
       },
     ],
   },

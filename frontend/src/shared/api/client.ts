@@ -55,9 +55,11 @@ apiClient.interceptors.response.use(
 
             // Attempt token refresh
             const response = await axios.post<{
+              user: object
               tokens: {
                 access_token: string
                 refresh_token: string
+                access_token_expires_in: number
               }
             }>(`${config.apiBaseUrl}/auth/refresh`, {
               refresh_token: refreshToken,
@@ -82,7 +84,7 @@ apiClient.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${accessToken}`
         }
 
-        return apiClient(originalRequest)
+        return axios(originalRequest)
       } catch (refreshError) {
         // Refresh failed - clear tokens and redirect to login
         localStorage.removeItem('access_token')

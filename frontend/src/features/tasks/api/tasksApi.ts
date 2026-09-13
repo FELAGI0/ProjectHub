@@ -14,7 +14,7 @@ export const tasksApi = {
     }
   ): Promise<PaginatedResponse<Task>> => {
     const response = await apiClient.get<PaginatedResponse<Task>>(
-      `/projects/${projectId}/tasks`,
+      projectId ? `/projects/${projectId}/tasks` : '/projects/tasks/all',
       { params }
     )
     return response.data
@@ -48,3 +48,4 @@ export const tasksApi = {
     await apiClient.delete(`/tasks/${taskId}`)
   },
 }
+

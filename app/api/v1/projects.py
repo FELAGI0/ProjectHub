@@ -71,7 +71,7 @@ async def list_projects(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "Missing or invalid authentication token."
         },
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Validation error in request body."
         },
     },
@@ -115,9 +115,7 @@ async def get_project(
     "/{project_id}",
     response_model=ProjectResponse,
     summary="Update a project",
-    description=(
-        "Partially update a project. Requires ADMIN or OWNER role."
-    ),
+    description=("Partially update a project. Requires ADMIN or OWNER role."),
     responses={
         status.HTTP_401_UNAUTHORIZED: {
             "description": "Missing or invalid authentication token."
@@ -126,7 +124,7 @@ async def get_project(
             "description": "Caller does not have sufficient permissions."
         },
         status.HTTP_404_NOT_FOUND: {"description": "Project not found."},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Validation error in request body."
         },
     },

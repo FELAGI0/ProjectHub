@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { apiClient } from '@/shared/api/client'
 import { tasksApi } from '../api/tasksApi'
 import type { Task, TaskCreateRequest, TaskUpdateRequest } from '../types'
 import { SUCCESS_MESSAGES, ERROR_MESSAGES } from '@/shared/constants/messages'
@@ -175,4 +176,38 @@ export const useDeleteTask = () => {
       toast.success(SUCCESS_MESSAGES.task.deleted)
     },
   })
+}
+
+export const useTotalTasksCount = () => {
+  const { data: projectsData } = useQuery({
+    queryKey: ['projects', 'all'],
+    queryFn: async () => {
+      const response = await apiClient.get<{ items: any[]; total: number }>(
+        '/projects',
+        { params: { page_size: 1000 } }
+      )
+      return response.data
+    },
+  })
+
+  const tasksQuery = useQuery({
+    queryKey: ['tasks', 'total-count'],
+    queryFn: async () => {
+      if (!projectsData?.items?.length) return 0
+
+      let total = 0
+      for (const project of projectsData.items) {
+        try {
+          const response = await tasksApi.getTasks(project.id, { page_size: 1 })
+          total += response.total
+        } catch {
+          // ignore project access errors
+        }
+      }
+      return total
+    },
+    enabled: !!projectsData?.items?.length,
+  })
+
+  return tasksQuery
 }

@@ -9,12 +9,19 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "20260903_0005"
 down_revision: str | Sequence[str] | None = "20260903_0004"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
+project_role = postgresql.ENUM(
+    "MEMBER", "ADMIN", "OWNER",
+    name="project_role",
+    create_type=False,
+)
 
 
 def upgrade() -> None:
@@ -43,7 +50,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "role",
-            sa.Enum("MEMBER", "ADMIN", "OWNER", name="project_role"),
+            project_role,
             nullable=False,
             server_default="MEMBER",
         ),

@@ -90,7 +90,7 @@ async def list_tasks(
             "description": "Project exists but is not owned by the caller."
         },
         status.HTTP_404_NOT_FOUND: {"description": "Project not found."},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Validation error in request body."
         },
     },
@@ -153,7 +153,7 @@ async def get_task(
             "description": ("Task or its parent project belongs to another user.")
         },
         status.HTTP_404_NOT_FOUND: {"description": "Task not found."},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Validation error in request body."
         },
     },

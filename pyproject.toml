@@ -34,6 +34,7 @@ asyncio_mode = "auto"
 target-version = "py313"
 line-length = 88
 src = ["app", "tests"]
+exclude = ["alembic/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]

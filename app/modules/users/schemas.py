@@ -64,6 +64,15 @@ class TokenPairResponse(BaseModel):
     access_token_expires_in: int
 
 
+class UserUpdateRequest(BaseModel):
+    """Payload for updating user profile information."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    username: Username | None = None
+    email: EmailStr | None = None
+
+
 class AuthenticationResponse(BaseModel):
     """Authenticated user details together with an issued token pair."""
 

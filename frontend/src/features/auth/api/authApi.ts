@@ -20,7 +20,16 @@ export const authApi = {
   },
 
   logout: async (): Promise<void> => {
-    // Backend doesn't have logout endpoint, just clear local state
     return Promise.resolve()
+  },
+
+  getProfile: async () => {
+    const response = await apiClient.get('/users/me')
+    return response.data
+  },
+
+  updateProfile: async (data: { username?: string; email?: string }) => {
+    const response = await apiClient.patch('/users/me', data)
+    return response.data
   },
 }

@@ -42,6 +42,22 @@ class UserRepository:
         await self._session.flush()
         return user
 
+    async def update(
+        self,
+        user: User,
+        *,
+        email: str | None = None,
+        username: str | None = None,
+    ) -> User:
+        """Update user profile information in the current transaction."""
+
+        if email is not None:
+            user.email = email
+        if username is not None:
+            user.username = username
+        await self._session.flush()
+        return user
+
 
 class RefreshTokenRepository:
     """Database access methods for refresh-token lifecycle management."""

@@ -10,14 +10,12 @@ from httpx import ASGITransport, AsyncClient
 from app.api.dependencies.auth import get_current_user
 from app.api.v1.projects import get_project_service
 from app.core.exceptions import (
-    AuthenticationRequiredError,
     ProjectAccessDeniedError,
     ProjectNotFoundError,
 )
 from app.factory import create_application
 from app.modules.projects.schemas import ProjectResponse
 from app.modules.users.models import User
-
 
 _OWNER_ID = uuid4()
 _OTHER_USER_ID = uuid4()

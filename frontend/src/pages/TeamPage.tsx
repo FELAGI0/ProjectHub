@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, UserPlus, Shield, Trash2, Crown } from 'lucide-react'
+import { ArrowLeft, UserPlus, Shield, Edit2, Trash2, Crown } from 'lucide-react'
 import { useProjectMembers, useRemoveMember } from '@/features/project-members/hooks/useProjectMembers'
 import { useProject } from '@/features/projects/hooks/useProjects'
 import { useAuthStore } from '@/features/auth/store/authStore'
@@ -153,18 +153,29 @@ export function TeamPage() {
                         {PROJECT_ROLE_LABELS[member.role]}
                       </Badge>
                       {canRemove && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() =>
-                            setMemberToRemove({
-                              id: member.user_id,
-                              name: member.user.username,
-                            })
-                          }
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              navigate(`/projects/${projectId}/team/members/${member.user_id}/edit`)
+                            }
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              setMemberToRemove({
+                                id: member.user_id,
+                                name: member.user.username,
+                              })
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>

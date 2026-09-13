@@ -128,9 +128,7 @@ class TaskService:
         await self._tasks.delete(task)
         await self._session.commit()
 
-    async def _verify_project_access(
-        self, user_id: UUID, project_id: UUID
-    ) -> None:
+    async def _verify_project_access(self, user_id: UUID, project_id: UUID) -> None:
         """Verify project exists and the user is a member.
 
         Raises ProjectNotFoundError (404) if the project does not exist and
@@ -141,9 +139,7 @@ class TaskService:
         if project is None:
             raise ProjectNotFoundError()
 
-        membership = await self._members.get_by_project_and_user(
-            project_id, user_id
-        )
+        membership = await self._members.get_by_project_and_user(project_id, user_id)
         if membership is None:
             raise ProjectAccessDeniedError()
 

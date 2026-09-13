@@ -43,7 +43,7 @@ jobs:
       run: uv run ruff check app tests
 
     - name: Run type checker
-      run: uv run mypy app --no-error-summary || true
+      run: uv run mypy app --no-error-summary
 
     - name: Run migrations
       env:

@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, Folder, CheckSquare } from 'lucide-react'
 import { useAuthStore } from '@/features/auth/store/authStore'
 import { useProjects } from '@/features/projects/hooks/useProjects'
+import { useTotalTasksCount } from '@/features/tasks/hooks/useTasks'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
@@ -16,6 +17,7 @@ export function DashboardPage() {
     page: 1,
     page_size: 5,
   })
+  const { data: tasksCount, isLoading: isLoadingTasksCount } = useTotalTasksCount()
 
   const projects = projectsData?.items || []
 
@@ -65,7 +67,11 @@ export function DashboardPage() {
             <CheckSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            {isLoadingTasksCount ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <div className="text-2xl font-bold">{tasksCount || 0}</div>
+            )}
           </CardContent>
         </Card>
       </div>

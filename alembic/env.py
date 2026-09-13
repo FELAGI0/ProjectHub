@@ -9,12 +9,9 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncEngine, async_engine_from_config
 
 from app.core.config import get_settings
+from app.db import registry  # noqa: F401
 from app.db.base import Base
 from app.db.session import create_database_url
-from app.modules.project_members import models as _project_members_models  # noqa: F401
-from app.modules.projects import models as _projects_models  # noqa: F401
-from app.modules.tasks import models as _tasks_models  # noqa: F401
-from app.modules.users import models as _users_models  # noqa: F401
 
 config = context.config
 

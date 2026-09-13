@@ -125,3 +125,6 @@ migrations.py
 # Instrumental temp files
 *.tmp
 log.txt
+
+# Claude Code local config
+CLAUDE.md

@@ -36,7 +36,6 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-.python-version
 
 # IDEs and Editors
 .vscode/

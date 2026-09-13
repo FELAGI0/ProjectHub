@@ -1,10 +1,12 @@
 """Unit tests for security primitives (password hashing, JWT, token hashing)."""
 
 from datetime import UTC, datetime, timedelta
+from unittest import mock
 from uuid import uuid4
 
 import jwt
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.exceptions import AuthenticationRequiredError
@@ -17,6 +19,8 @@ from app.core.security import (
     hash_token,
     verify_password,
 )
+from app.modules.users.repository import RefreshTokenRepository
+from app.modules.users.service import UserService
 
 settings = get_settings()
 SECRET = settings.jwt_secret_key.get_secret_value()
@@ -117,6 +121,73 @@ class TestRefreshToken:
         assert payload["sub"] == str(user_id)
         assert payload["type"] == "refresh"
         assert payload["jti"] == str(token_id)
+
+
+class TestUserLogout:
+    """UserService logout behavior."""
+
+    @pytest.fixture
+    def session(self):
+        """Mock AsyncSession."""
+        return mock.AsyncMock(spec=AsyncSession)
+
+    @pytest.fixture
+    def refresh_tokens(self):
+        """Mock refresh-token repository."""
+        return mock.AsyncMock(spec=RefreshTokenRepository)
+
+    @pytest.fixture
+    def service(self, session, refresh_tokens):
+        """UserService with a mocked refresh-token repository."""
+        service = UserService(session, settings)
+        service._refresh_tokens = refresh_tokens
+        return service
+
+    @pytest.mark.asyncio
+    async def test_logout_revokes_token(self, service, refresh_tokens, session) -> None:
+        """Logout revokes the decoded refresh token and commits."""
+        token, token_id, _ = create_refresh_token(uuid4(), settings)
+
+        await service.logout(token)
+
+        refresh_tokens.revoke_by_token_id.assert_awaited_once_with(token_id)
+        session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_logout_invalid_jwt_raises(
+        self, service, refresh_tokens, session
+    ) -> None:
+        """Logout rejects an invalid JWT without touching storage."""
+        with pytest.raises(AuthenticationRequiredError):
+            await service.logout("not-a-jwt")
+
+        refresh_tokens.revoke_by_token_id.assert_not_awaited()
+        session.commit.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_logout_all_revokes_all(
+        self, service, refresh_tokens, session
+    ) -> None:
+        """Logout-all revokes every active token and commits."""
+        user_id = uuid4()
+
+        await service.logout_all(user_id)
+
+        refresh_tokens.revoke_all_for_user.assert_awaited_once_with(user_id)
+        session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_logout_not_in_db_is_ok(
+        self, service, refresh_tokens, session
+    ) -> None:
+        """A valid token absent from storage still commits successfully."""
+        token, token_id, _ = create_refresh_token(uuid4(), settings)
+        refresh_tokens.revoke_by_token_id.return_value = False
+
+        await service.logout(token)
+
+        refresh_tokens.revoke_by_token_id.assert_awaited_once_with(token_id)
+        session.commit.assert_awaited_once()
 
 
 class TestCreateToken:

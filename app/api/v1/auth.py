@@ -5,10 +5,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies.auth import CurrentUser
 from app.core.config import get_settings
 from app.db.session import get_db_session
 from app.modules.users.schemas import (
     AuthenticationResponse,
+    LogoutRequest,
     RefreshTokenRequest,
     UserLoginRequest,
     UserRegistrationRequest,
@@ -67,3 +69,45 @@ async def refresh(
     """Rotate a valid refresh token and issue a new token pair."""
 
     return await service.refresh(payload.refresh_token)
+
+
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Logout current session",
+    description="Revoke the provided refresh token. Idempotent.",
+    responses={
+        status.HTTP_204_NO_CONTENT: {
+            "description": "Token revoked, already revoked, or not found."
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Invalid or expired refresh token."
+        },
+    },
+)
+async def logout(
+    body: LogoutRequest,
+    service: Annotated[UserService, Depends(get_user_service)],
+) -> None:
+    """Revoke a refresh token."""
+    await service.logout(body.refresh_token)
+
+
+@router.post(
+    "/logout-all",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Logout from all devices",
+    description="Revoke all refresh tokens for the current user.",
+    responses={
+        status.HTTP_204_NO_CONTENT: {"description": "All tokens revoked."},
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Missing or invalid access token."
+        },
+    },
+)
+async def logout_all(
+    current_user: CurrentUser,
+    service: Annotated[UserService, Depends(get_user_service)],
+) -> None:
+    """Revoke all refresh tokens for the current user."""
+    await service.logout_all(current_user.id)

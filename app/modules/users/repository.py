@@ -1,9 +1,10 @@
 """Persistence operations for the users module."""
 
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import CursorResult, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.users.models import RefreshToken, User
@@ -98,3 +99,27 @@ class RefreshTokenRepository:
 
         refresh_token.revoked_at = revoked_at
         await self._session.flush()
+
+    async def revoke_by_token_id(self, token_id: UUID) -> bool:
+        """Mark token as revoked by its jti. Returns True if updated."""
+
+        stmt = (
+            update(RefreshToken)
+            .where(RefreshToken.token_id == token_id)
+            .where(RefreshToken.revoked_at.is_(None))
+            .values(revoked_at=datetime.now(UTC))
+        )
+        result = await self._session.execute(stmt)
+        return cast(CursorResult[Any], result).rowcount > 0
+
+    async def revoke_all_for_user(self, user_id: UUID) -> int:
+        """Revoke all active tokens for a user. Returns count."""
+
+        stmt = (
+            update(RefreshToken)
+            .where(RefreshToken.user_id == user_id)
+            .where(RefreshToken.revoked_at.is_(None))
+            .values(revoked_at=datetime.now(UTC))
+        )
+        result = await self._session.execute(stmt)
+        return cast(CursorResult[Any], result).rowcount

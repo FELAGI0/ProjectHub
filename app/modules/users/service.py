@@ -102,6 +102,23 @@ class UserService:
         await self._session.commit()
         return response
 
+    async def logout(self, token: str) -> None:
+        """Revoke a refresh token. Idempotent.
+
+        Raises AuthenticationRequiredError (401) if JWT signature, expiry,
+        or type is invalid.
+        Returns silently (204) if token is not found or already revoked.
+        """
+        payload = decode_token(token, self._settings, expected_type="refresh")
+        token_id = self._get_token_id(payload)
+        await self._refresh_tokens.revoke_by_token_id(token_id)
+        await self._session.commit()
+
+    async def logout_all(self, user_id: UUID) -> None:
+        """Revoke all active refresh tokens for a user."""
+        await self._refresh_tokens.revoke_all_for_user(user_id)
+        await self._session.commit()
+
     async def get_current_user(self, token: str) -> User:
         """Resolve an active user from a valid access token."""
 

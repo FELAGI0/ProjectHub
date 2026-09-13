@@ -297,6 +297,100 @@ async def test_refresh_invalid_token(client, mock_service) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Logout — POST /api/v1/auth/logout
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_logout_valid_token(client, mock_service) -> None:
+    """A valid refresh token returns 204."""
+    mock_service.logout.return_value = None
+
+    response = await client.post(
+        "/api/v1/auth/logout",
+        json={"refresh_token": "valid.jwt.token"},
+    )
+
+    assert response.status_code == 204
+    mock_service.logout.assert_awaited_once_with("valid.jwt.token")
+
+
+@pytest.mark.asyncio
+async def test_logout_invalid_signature(client, mock_service) -> None:
+    """A refresh token with an invalid signature returns 401."""
+    mock_service.logout.side_effect = AuthenticationRequiredError()
+
+    response = await client.post(
+        "/api/v1/auth/logout",
+        json={"refresh_token": "invalid.jwt.token"},
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_logout_expired_token(client, mock_service) -> None:
+    """An expired refresh token returns 401."""
+    mock_service.logout.side_effect = AuthenticationRequiredError()
+
+    response = await client.post(
+        "/api/v1/auth/logout",
+        json={"refresh_token": "expired.jwt.token"},
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_logout_nonexistent_token(client, mock_service) -> None:
+    """A valid token absent from storage returns 204."""
+    mock_service.logout.return_value = None
+
+    response = await client.post(
+        "/api/v1/auth/logout",
+        json={"refresh_token": "missing.jwt.token"},
+    )
+
+    assert response.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_logout_idempotent(client, mock_service) -> None:
+    """Repeated logout requests return 204."""
+    mock_service.logout.return_value = None
+    payload = {"refresh_token": "valid.jwt.token"}
+
+    first_response = await client.post("/api/v1/auth/logout", json=payload)
+    second_response = await client.post("/api/v1/auth/logout", json=payload)
+
+    assert first_response.status_code == 204
+    assert second_response.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_logout_all_success(client, mock_service, mock_current_user) -> None:
+    """An authenticated user can revoke all refresh tokens."""
+    mock_service.logout_all.return_value = None
+
+    response = await client.post(
+        "/api/v1/auth/logout-all",
+        headers={"Authorization": "Bearer fake-access-token"},
+    )
+
+    assert response.status_code == 204
+    mock_service.logout_all.assert_awaited_once_with(_USER_ID)
+
+
+@pytest.mark.asyncio
+async def test_logout_all_no_auth(client, mock_service, mock_no_auth) -> None:
+    """An unauthenticated logout-all request returns 401."""
+    response = await client.post("/api/v1/auth/logout-all")
+
+    assert response.status_code == 401
+    mock_service.logout_all.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
 # Get current user — GET /api/v1/users/me
 # ---------------------------------------------------------------------------
 
@@ -307,6 +401,16 @@ def mock_current_user(app):
     user = _make_user()
     app.dependency_overrides[get_current_user] = lambda: user
     yield user
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def mock_no_auth(app):
+    """Override get_current_user to raise AuthenticationRequiredError."""
+    app.dependency_overrides[get_current_user] = lambda: _raise(
+        AuthenticationRequiredError()
+    )
+    yield
     app.dependency_overrides.clear()
 
 

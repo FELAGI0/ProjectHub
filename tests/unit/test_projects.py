@@ -6,11 +6,15 @@ and membership-based authorization in isolation from the database.
 
 from datetime import UTC, datetime
 from unittest import mock
+from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.core.exceptions import (
+    ConflictError,
+    DomainError,
     InsufficientPermissionError,
     ProjectAccessDeniedError,
     ProjectNotFoundError,
@@ -33,6 +37,7 @@ from app.modules.users.models import User  # noqa: F401
 _OWNER_ID = uuid4()
 _OTHER_ID = uuid4()
 _PROJECT_ID = uuid4()
+_USER_B_ID = uuid4()
 
 
 def _make_project(
@@ -338,3 +343,94 @@ class TestDeleteProject:
 
         with pytest.raises(InsufficientPermissionError):
             await service.delete_project(_OWNER_ID, _PROJECT_ID)
+
+
+# ---------------------------------------------------------------------------
+# transfer_ownership
+# ---------------------------------------------------------------------------
+
+
+class TestTransferOwnership:
+    """transfer_ownership changes roles and owner_id when authorized."""
+
+    @pytest.mark.asyncio
+    async def test_transfer_ownership_success(self, service, mock_member_repo) -> None:
+        """Roles change, project.owner_id updated, session committed."""
+        project = _make_project(owner_id=_OWNER_ID)
+        caller_member = _make_member(user_id=_OWNER_ID, role=ProjectRole.OWNER)
+        new_owner_member = _make_member(user_id=_USER_B_ID, role=ProjectRole.MEMBER)
+        mock_member_repo.get_by_project_and_user.return_value = new_owner_member
+
+        with patch(
+            "app.modules.projects.service.require_project_membership",
+            new=AsyncMock(return_value=(project, caller_member)),
+        ):
+            await service.transfer_ownership(_OWNER_ID, _PROJECT_ID, _USER_B_ID)
+
+        assert caller_member.role == ProjectRole.ADMIN
+        assert new_owner_member.role == ProjectRole.OWNER
+        assert project.owner_id == _USER_B_ID
+        service._session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_transfer_to_self_raises(self, service) -> None:
+        """DomainError raised when transferring to self."""
+        project = _make_project(owner_id=_OWNER_ID)
+        caller_member = _make_member(user_id=_OWNER_ID, role=ProjectRole.OWNER)
+
+        with (
+            patch(
+                "app.modules.projects.service.require_project_membership",
+                new=AsyncMock(return_value=(project, caller_member)),
+            ),
+            pytest.raises(DomainError, match="Cannot transfer ownership to yourself"),
+        ):
+            await service.transfer_ownership(_OWNER_ID, _PROJECT_ID, _OWNER_ID)
+
+        service._session.commit.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_transfer_to_non_member_raises(
+        self, service, mock_member_repo
+    ) -> None:
+        """DomainError raised when new owner is not a member."""
+        project = _make_project(owner_id=_OWNER_ID)
+        caller_member = _make_member(user_id=_OWNER_ID, role=ProjectRole.OWNER)
+        mock_member_repo.get_by_project_and_user.return_value = None
+
+        with (
+            patch(
+                "app.modules.projects.service.require_project_membership",
+                new=AsyncMock(return_value=(project, caller_member)),
+            ),
+            pytest.raises(DomainError, match="User is not a project member"),
+        ):
+            await service.transfer_ownership(_OWNER_ID, _PROJECT_ID, _USER_B_ID)
+
+        service._session.commit.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_concurrent_transfer_raises_conflict(
+        self, service, mock_member_repo
+    ) -> None:
+        """ConflictError raised on concurrent IntegrityError, session rolled back."""
+        project = _make_project(owner_id=_OWNER_ID)
+        caller_member = _make_member(user_id=_OWNER_ID, role=ProjectRole.OWNER)
+        new_owner_member = _make_member(user_id=_USER_B_ID, role=ProjectRole.MEMBER)
+        mock_member_repo.get_by_project_and_user.return_value = new_owner_member
+        service._session.commit.side_effect = IntegrityError(
+            "INSERT INTO project_members ...",
+            {},
+            Exception("duplicate key value violates unique constraint"),
+        )
+
+        with (
+            patch(
+                "app.modules.projects.service.require_project_membership",
+                new=AsyncMock(return_value=(project, caller_member)),
+            ),
+            pytest.raises(ConflictError, match="Ownership was changed concurrently"),
+        ):
+            await service.transfer_ownership(_OWNER_ID, _PROJECT_ID, _USER_B_ID)
+
+        service._session.rollback.assert_awaited_once()

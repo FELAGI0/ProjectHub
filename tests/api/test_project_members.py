@@ -18,7 +18,10 @@ from httpx import ASGITransport, AsyncClient
 
 from app.api.dependencies.auth import get_current_user
 from app.api.v1.project_members import get_member_service
+from app.api.v1.projects import get_project_service
 from app.core.exceptions import (
+    ConflictError,
+    DomainError,
     InsufficientPermissionError,
     MemberNotFoundError,
     ProjectAccessDeniedError,
@@ -112,6 +115,15 @@ def mock_service(app):
     """Override get_member_service with an AsyncMock and yield the mock."""
     svc = mock.AsyncMock()
     app.dependency_overrides[get_member_service] = lambda: svc
+    yield svc
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def mock_project_service(app):
+    """Override get_project_service with an AsyncMock and yield the mock."""
+    svc = mock.AsyncMock()
+    app.dependency_overrides[get_project_service] = lambda: svc
     yield svc
     app.dependency_overrides.clear()
 
@@ -382,3 +394,168 @@ class TestRemoveMember:
         )
 
         assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Transfer Ownership -- POST /api/v1/projects/{project_id}/transfer-ownership
+# ---------------------------------------------------------------------------
+
+
+class TestTransferOwnership:
+    """POST /projects/{id}/transfer-ownership -- transfer project ownership."""
+
+    @pytest.mark.asyncio
+    async def test_owner_can_transfer_ownership(
+        self, client, mock_project_service, mock_current_user
+    ) -> None:
+        """OWNER can transfer ownership to another member → 204."""
+        mock_project_service.transfer_ownership.return_value = None
+
+        response = await client.post(
+            f"/api/v1/projects/{_PROJECT_ID}/transfer-ownership",
+            json={"new_owner_id": str(_OTHER_ID)},
+        )
+
+        assert response.status_code == 204
+        mock_project_service.transfer_ownership.assert_called_once_with(
+            user_id=_OWNER_ID,
+            project_id=_PROJECT_ID,
+            new_owner_id=_OTHER_ID,
+        )
+
+    @pytest.mark.asyncio
+    async def test_admin_cannot_transfer_ownership(
+        self, client, mock_project_service, mock_current_user
+    ) -> None:
+        """ADMIN cannot transfer ownership → 403."""
+        mock_project_service.transfer_ownership.side_effect = (
+            InsufficientPermissionError()
+        )
+
+        response = await client.post(
+            f"/api/v1/projects/{_PROJECT_ID}/transfer-ownership",
+            json={"new_owner_id": str(_OTHER_ID)},
+        )
+
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_transfer_ownership(
+        self, client, mock_project_service, mock_current_user
+    ) -> None:
+        """MEMBER cannot transfer ownership → 403."""
+        mock_project_service.transfer_ownership.side_effect = (
+            InsufficientPermissionError()
+        )
+
+        response = await client.post(
+            f"/api/v1/projects/{_PROJECT_ID}/transfer-ownership",
+            json={"new_owner_id": str(_OTHER_ID)},
+        )
+
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_non_member_cannot_transfer_ownership(
+        self, client, mock_project_service, mock_current_user
+    ) -> None:
+        """Non-member cannot transfer ownership → 403."""
+        mock_project_service.transfer_ownership.side_effect = ProjectAccessDeniedError()
+
+        response = await client.post(
+            f"/api/v1/projects/{_PROJECT_ID}/transfer-ownership",
+            json={"new_owner_id": str(_OTHER_ID)},
+        )
+
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_cannot_transfer_to_self(
+        self, client, mock_project_service, mock_current_user
+    ) -> None:
+        """Cannot transfer ownership to self → 400."""
+        mock_project_service.transfer_ownership.side_effect = DomainError(
+            "Cannot transfer ownership to yourself"
+        )
+
+        response = await client.post(
+            f"/api/v1/projects/{_PROJECT_ID}/transfer-ownership",
+            json={"new_owner_id": str(_OWNER_ID)},
+        )
+
+        assert response.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_cannot_transfer_to_non_member(
+        self, client, mock_project_service, mock_current_user
+    ) -> None:
+        """Cannot transfer ownership to non-member → 400."""
+        mock_project_service.transfer_ownership.side_effect = DomainError(
+            "User is not a project member"
+        )
+
+        response = await client.post(
+            f"/api/v1/projects/{_PROJECT_ID}/transfer-ownership",
+            json={"new_owner_id": str(_OTHER_ID)},
+        )
+
+        assert response.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_cannot_transfer_to_nonexistent_user(
+        self, client, mock_project_service, mock_current_user
+    ) -> None:
+        """Cannot transfer ownership to a user who doesn't exist → 400."""
+        fake_id = uuid4()
+        mock_project_service.transfer_ownership.side_effect = DomainError(
+            "User is not a project member"
+        )
+
+        response = await client.post(
+            f"/api/v1/projects/{_PROJECT_ID}/transfer-ownership",
+            json={"new_owner_id": str(fake_id)},
+        )
+
+        assert response.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_concurrent_transfer_conflict(
+        self, client, mock_project_service, mock_current_user
+    ) -> None:
+        """Concurrent transfer attempt → 409."""
+        mock_project_service.transfer_ownership.side_effect = ConflictError(
+            "Ownership was changed concurrently, please retry"
+        )
+
+        response = await client.post(
+            f"/api/v1/projects/{_PROJECT_ID}/transfer-ownership",
+            json={"new_owner_id": str(_OTHER_ID)},
+        )
+
+        assert response.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_no_auth_transfer(
+        self, client, mock_project_service, mock_no_auth
+    ) -> None:
+        """Missing authentication yields a 401 error."""
+        response = await client.post(
+            f"/api/v1/projects/{_PROJECT_ID}/transfer-ownership",
+            json={"new_owner_id": str(_OTHER_ID)},
+        )
+
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_project_not_found_transfer(
+        self, client, mock_project_service, mock_current_user
+    ) -> None:
+        """Non-existent project yields 404."""
+        mock_project_service.transfer_ownership.side_effect = ProjectNotFoundError()
+
+        response = await client.post(
+            f"/api/v1/projects/{uuid4()}/transfer-ownership",
+            json={"new_owner_id": str(_OTHER_ID)},
+        )
+
+        assert response.status_code == 404

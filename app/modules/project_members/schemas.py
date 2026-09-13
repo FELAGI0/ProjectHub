@@ -23,6 +23,14 @@ class MemberRoleUpdateRequest(BaseModel):
     role: ProjectRole
 
 
+class TransferOwnershipRequest(BaseModel):
+    """Payload for transferring project ownership."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    new_owner_id: UUID
+
+
 class MemberResponse(BaseModel):
     """Public representation of a project membership."""
 

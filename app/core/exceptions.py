@@ -12,10 +12,16 @@ class DomainError(Exception):
         super().__init__(self.detail)
 
 
-class UserAlreadyExistsError(DomainError):
-    """Raised when an email address or username is already registered."""
+class ConflictError(DomainError):
+    """Raised when a request conflicts with the current state of the resource."""
 
     status_code = 409
+    detail = "Resource conflict."
+
+
+class UserAlreadyExistsError(ConflictError):
+    """Raised when an email address or username is already registered."""
+
     detail = "A user with these details already exists."
 
 

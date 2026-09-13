@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies.auth import CurrentUser
 from app.core.config import get_settings
 from app.db.session import get_db_session
+from app.modules.project_members.schemas import TransferOwnershipRequest
 from app.modules.projects.schemas import (
     PaginatedProjectsResponse,
     ProjectCreateRequest,
@@ -165,3 +166,41 @@ async def delete_project(
     """Delete a project."""
 
     await service.delete_project(current_user.id, project_id)
+
+
+@router.post(
+    "/{project_id}/transfer-ownership",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Transfer project ownership",
+    description=(
+        "Transfer ownership of a project to another member. Requires OWNER role."
+    ),
+    responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "description": "Invalid transfer request (self, non-member, etc)."
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Missing or invalid authentication token."
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Caller does not have sufficient permissions."
+        },
+        status.HTTP_404_NOT_FOUND: {"description": "Project not found."},
+        status.HTTP_409_CONFLICT: {
+            "description": "Ownership changed concurrently, please retry."
+        },
+    },
+)
+async def transfer_project_ownership(
+    project_id: UUID,
+    body: TransferOwnershipRequest,
+    current_user: CurrentUser,
+    service: Annotated[ProjectService, Depends(get_project_service)],
+) -> None:
+    """Transfer project ownership to another member."""
+
+    await service.transfer_ownership(
+        user_id=current_user.id,
+        project_id=project_id,
+        new_owner_id=body.new_owner_id,
+    )

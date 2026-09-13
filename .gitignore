@@ -113,3 +113,15 @@ staticfiles/
 
 # Claude Code artifacts
 .claude/
+
+# MCP / Playwright artifacts
+.playwright-mcp/
+skills-lock.json
+
+# Generated reports
+COMPLETION_AUDIT.md
+migrations.py
+
+# Instrumental temp files
+*.tmp
+log.txt

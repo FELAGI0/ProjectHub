@@ -12,6 +12,27 @@ class DomainError(Exception):
         super().__init__(self.detail)
 
 
+class UnauthorizedError(DomainError):
+    """Base class for authentication failures."""
+
+    status_code = 401
+    detail = "Authentication is required."
+
+
+class ForbiddenError(DomainError):
+    """Base class for authorization failures."""
+
+    status_code = 403
+    detail = "Access is forbidden."
+
+
+class NotFoundError(DomainError):
+    """Base class for missing resources."""
+
+    status_code = 404
+    detail = "Resource was not found."
+
+
 class ConflictError(DomainError):
     """Raised when a request conflicts with the current state of the resource."""
 
@@ -25,64 +46,55 @@ class UserAlreadyExistsError(ConflictError):
     detail = "A user with these details already exists."
 
 
-class InvalidCredentialsError(DomainError):
+class InvalidCredentialsError(UnauthorizedError):
     """Raised when supplied authentication credentials are invalid."""
 
-    status_code = 401
     detail = "Invalid email or password."
 
 
-class AuthenticationRequiredError(DomainError):
+class AuthenticationRequiredError(UnauthorizedError):
     """Raised when a protected resource is accessed without valid authentication."""
 
-    status_code = 401
     detail = "Authentication is required."
 
 
-class UserNotFoundError(DomainError):
+class UserNotFoundError(NotFoundError):
     """Raised when an expected user no longer exists."""
 
-    status_code = 404
     detail = "User was not found."
 
 
-class ProjectNotFoundError(DomainError):
+class ProjectNotFoundError(NotFoundError):
     """Raised when a requested project does not exist."""
 
-    status_code = 404
     detail = "Project was not found."
 
 
-class ProjectAccessDeniedError(DomainError):
+class ProjectAccessDeniedError(ForbiddenError):
     """Raised when a user tries to access a project they do not own."""
 
-    status_code = 403
     detail = "You do not have access to this project."
 
 
-class TaskNotFoundError(DomainError):
+class TaskNotFoundError(NotFoundError):
     """Raised when a requested task does not exist."""
 
-    status_code = 404
     detail = "Task was not found."
 
 
-class MemberNotFoundError(DomainError):
+class MemberNotFoundError(NotFoundError):
     """Raised when a project member is not found."""
 
-    status_code = 404
     detail = "Member was not found."
 
 
-class MemberAlreadyExistsError(DomainError):
+class MemberAlreadyExistsError(ConflictError):
     """Raised when a user is already a member of a project."""
 
-    status_code = 409
     detail = "User is already a member of this project."
 
 
-class InsufficientPermissionError(DomainError):
+class InsufficientPermissionError(ForbiddenError):
     """Raised when a user lacks the required role level for an action."""
 
-    status_code = 403
     detail = "You do not have sufficient permissions for this action."

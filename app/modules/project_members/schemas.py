@@ -11,8 +11,6 @@ from app.modules.project_members.models import ProjectRole
 class MemberAddRequest(BaseModel):
     """Payload for adding a member to a project."""
 
-    model_config = ConfigDict(str_strip_whitespace=True)
-
     user_id: UUID
     role: ProjectRole = ProjectRole.MEMBER
 
@@ -25,8 +23,6 @@ class MemberRoleUpdateRequest(BaseModel):
 
 class TransferOwnershipRequest(BaseModel):
     """Payload for transferring project ownership."""
-
-    model_config = ConfigDict(str_strip_whitespace=True)
 
     new_owner_id: UUID
 

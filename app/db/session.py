@@ -14,7 +14,14 @@ def create_database_url(settings: Settings) -> URL:
 
     if settings.database_url is not None:
         database_url = make_url(settings.database_url)
-        return database_url.set(drivername="postgresql+asyncpg")
+        query = dict(database_url.query)
+        if "sslmode" in query and "ssl" not in query:
+            query["ssl"] = query.pop("sslmode")
+        query.pop("channel_binding", None)
+        return database_url.set(
+            drivername="postgresql+asyncpg",
+            query=query,
+        )
 
     return URL.create(
         drivername="postgresql+asyncpg",
@@ -29,9 +36,16 @@ def create_database_url(settings: Settings) -> URL:
 def create_database_engine(settings: Settings) -> AsyncEngine:
     """Create the application asynchronous database engine."""
 
+    database_url = create_database_url(settings)
+    connect_args = (
+        {}
+        if settings.database_url is not None and "ssl" in database_url.query
+        else {"ssl": settings.postgres_ssl}
+    )
+
     return create_async_engine(
-        create_database_url(settings),
-        connect_args={"ssl": settings.postgres_ssl},
+        database_url,
+        connect_args=connect_args,
         pool_pre_ping=True,
     )
 

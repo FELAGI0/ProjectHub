@@ -31,7 +31,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
       >
         <div className="flex h-16 items-center border-b border-sidebar-border px-6">
-          <h1 className="text-xl font-bold text-sidebar-foreground">TaskFlow</h1>
+          <h1 className="text-xl font-bold text-sidebar-foreground">ProjectHub</h1>
         </div>
 
         <nav className="flex flex-col gap-1 p-4">

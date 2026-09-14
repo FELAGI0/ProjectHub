@@ -10,6 +10,23 @@
 ![Tests](https://img.shields.io/badge/tests-237_passed-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
+## 📸 Screenshots
+
+### Dashboard
+![Dashboard](docs/screenshots/dashboard.png)
+
+Project overview with metrics, recent projects, and quick actions.
+
+### Team Management
+![Team Management](docs/screenshots/team.png)
+
+Role-based access control: OWNER, ADMIN, MEMBER per project.
+
+### API Documentation
+![Swagger UI](docs/screenshots/swagger.png)
+
+Full OpenAPI documentation available at /api/v1/docs.
+
 ## ✨ Features
 
 ### Backend

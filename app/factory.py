@@ -1,18 +1,23 @@
 """FastAPI application factory."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from typing import cast
 
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from starlette.responses import Response
 
 from app.api.v1.router import router as api_v1_router
 from app.core.config import Settings, get_settings
 from app.core.exceptions import DomainError
 from app.core.logging import configure_logging
 from app.core.middleware import RequestIDMiddleware
+from app.core.rate_limit import limiter
 from app.db.session import close_database_engine
 
 logger = structlog.get_logger(__name__)
@@ -76,6 +81,11 @@ def create_application(settings: Settings | None = None) -> FastAPI:
     )
     application.add_middleware(RequestIDMiddleware)
 
+    application.state.limiter = limiter
+    application.add_exception_handler(
+        RateLimitExceeded,
+        cast(Callable[[Request, Exception], Response], _rate_limit_exceeded_handler),
+    )
     application.add_exception_handler(DomainError, domain_error_handler)
     application.add_exception_handler(Exception, generic_exception_handler)
     application.include_router(api_v1_router, prefix=settings.api_v1_prefix)

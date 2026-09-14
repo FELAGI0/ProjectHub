@@ -2,11 +2,12 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import CurrentUser
 from app.core.config import get_settings
+from app.core.rate_limit import limiter
 from app.db.session import get_db_session
 from app.modules.users.schemas import (
     AuthenticationResponse,
@@ -34,7 +35,10 @@ def get_user_service(
     status_code=status.HTTP_201_CREATED,
     summary="Register a user account",
 )
+@limiter.limit("3/minute")
 async def register(
+    request: Request,
+    response: Response,
     payload: UserRegistrationRequest,
     service: Annotated[UserService, Depends(get_user_service)],
 ) -> AuthenticationResponse:
@@ -48,7 +52,10 @@ async def register(
     response_model=AuthenticationResponse,
     summary="Authenticate a user",
 )
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
+    response: Response,
     payload: UserLoginRequest,
     service: Annotated[UserService, Depends(get_user_service)],
 ) -> AuthenticationResponse:
@@ -62,7 +69,10 @@ async def login(
     response_model=AuthenticationResponse,
     summary="Rotate a refresh token",
 )
+@limiter.limit("10/minute")
 async def refresh(
+    request: Request,
+    response: Response,
     payload: RefreshTokenRequest,
     service: Annotated[UserService, Depends(get_user_service)],
 ) -> AuthenticationResponse:
@@ -85,7 +95,10 @@ async def refresh(
         },
     },
 )
+@limiter.limit("20/minute")
 async def logout(
+    request: Request,
+    response: Response,
     body: LogoutRequest,
     service: Annotated[UserService, Depends(get_user_service)],
 ) -> None:
@@ -105,7 +118,10 @@ async def logout(
         },
     },
 )
+@limiter.limit("20/minute")
 async def logout_all(
+    request: Request,
+    response: Response,
     current_user: CurrentUser,
     service: Annotated[UserService, Depends(get_user_service)],
 ) -> None:

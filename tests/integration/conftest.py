@@ -111,6 +111,16 @@ def app(test_settings: Settings, db_session: AsyncSession):
     application.dependency_overrides.clear()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _disable_rate_limiter():
+    """Disable rate limiting for integration tests."""
+    from app.core.rate_limit import limiter
+
+    limiter.enabled = False
+    yield
+    limiter.enabled = True
+
+
 @pytest.fixture
 async def client(app) -> AsyncIterator[AsyncClient]:
     """Yield an HTTP client connected to the isolated application instance."""

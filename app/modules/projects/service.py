@@ -1,8 +1,8 @@
 """Business logic for project management."""
 
-import logging
 from uuid import UUID
 
+import structlog
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +20,7 @@ from app.modules.projects.schemas import (
     ProjectUpdateRequest,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class ProjectService:
@@ -173,10 +173,10 @@ class ProjectService:
             ) from exc
 
         logger.info(
-            "Project %s ownership transferred from %s to %s",
-            project_id,
-            user_id,
-            new_owner_id,
+            "project_ownership_transferred",
+            project_id=str(project_id),
+            previous_owner_id=str(user_id),
+            new_owner_id=str(new_owner_id),
         )
 
     async def _verify_project_access(

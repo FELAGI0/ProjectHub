@@ -1,40 +1,50 @@
-"""Standard-library logging configuration with JSON output."""
+"""Structlog configuration for application and third-party loggers."""
 
-import json
 import logging
+
+import structlog
+from structlog.stdlib import ProcessorFormatter
 
 from app.core.config import Settings
 
 
-class JSONFormatter(logging.Formatter):
-    """Emit log records as single-line JSON objects."""
-
-    def format(self, record: logging.LogRecord) -> str:
-        """Format the log record as a JSON string."""
-
-        try:
-            msg = record.getMessage()
-        except Exception:
-            msg = str(record.msg)
-
-        fields = {
-            "timestamp": self.formatTime(record, datefmt="%Y-%m-%dT%H:%M:%S"),
-            "level": record.levelname,
-            "logger": record.name,
-            "message": msg,
-            "module": record.module,
-            "function": record.funcName,
-            "line": record.lineno,
-        }
-
-        return json.dumps(fields, default=str)
-
-
 def configure_logging(settings: Settings) -> None:
-    """Configure application logging once during application startup."""
+    """Configure structlog and standard-library loggers."""
+
+    shared_processors: list[structlog.types.Processor] = [
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.format_exc_info,
+    ]
+    renderer = (
+        structlog.dev.ConsoleRenderer()
+        if settings.debug
+        else structlog.processors.JSONRenderer()
+    )
+    formatter = ProcessorFormatter(
+        processor=renderer,
+        foreign_pre_chain=shared_processors,
+    )
 
     handler = logging.StreamHandler()
-    handler.setFormatter(JSONFormatter())
+    handler.setFormatter(formatter)
 
-    logging.root.setLevel(getattr(logging, settings.log_level))
-    logging.root.handlers = [handler]
+    root_logger = logging.getLogger()
+    root_logger.setLevel(getattr(logging, settings.log_level))
+    root_logger.handlers = [handler]
+
+    for logger_name in ("uvicorn", "uvicorn.error"):
+        uvicorn_logger = logging.getLogger(logger_name)
+        uvicorn_logger.handlers = [handler]
+        uvicorn_logger.propagate = False
+
+    access_logger = logging.getLogger("uvicorn.access")
+    access_logger.disabled = True
+
+    structlog.configure(
+        processors=[*shared_processors, ProcessorFormatter.wrap_for_formatter],
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=False,
+    )

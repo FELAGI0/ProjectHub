@@ -1,10 +1,9 @@
 """FastAPI application factory."""
 
-import logging
-import traceback
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -13,9 +12,10 @@ from app.api.v1.router import router as api_v1_router
 from app.core.config import Settings, get_settings
 from app.core.exceptions import DomainError
 from app.core.logging import configure_logging
+from app.core.middleware import RequestIDMiddleware
 from app.db.session import close_database_engine
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
@@ -43,9 +43,7 @@ async def domain_error_handler(_: Request, exc: Exception) -> JSONResponse:
 async def generic_exception_handler(_: Request, exc: Exception) -> JSONResponse:
     """Catch-all handler to log unexpected errors."""
 
-    print(f"ERROR: {type(exc).__name__}: {exc}", flush=True)
-    traceback.print_exc()
-    logger.exception("Unhandled exception occurred", exc_info=exc)
+    logger.exception("unhandled_exception", error_type=type(exc).__name__)
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error"},
@@ -76,6 +74,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    application.add_middleware(RequestIDMiddleware)
 
     application.add_exception_handler(DomainError, domain_error_handler)
     application.add_exception_handler(Exception, generic_exception_handler)

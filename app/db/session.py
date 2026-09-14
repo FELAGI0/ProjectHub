@@ -38,8 +38,8 @@ def create_database_engine(settings: Settings) -> AsyncEngine:
 
     database_url = create_database_url(settings)
     connect_args = (
-        {}
-        if settings.database_url is not None and "ssl" in database_url.query
+        {"ssl": True}
+        if settings.database_url is not None
         else {"ssl": settings.postgres_ssl}
     )
 

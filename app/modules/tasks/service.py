@@ -5,11 +5,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
-from app.core.exceptions import (
-    ProjectAccessDeniedError,
-    ProjectNotFoundError,
-    TaskNotFoundError,
-)
+from app.core.exceptions import ProjectNotFoundError, TaskNotFoundError
 from app.modules.project_members.repository import ProjectMemberRepository
 from app.modules.projects.repository import ProjectRepository
 from app.modules.tasks.models import Task, TaskPriority, TaskStatus
@@ -131,8 +127,8 @@ class TaskService:
     async def _verify_project_access(self, user_id: UUID, project_id: UUID) -> None:
         """Verify project exists and the user is a member.
 
-        Raises ProjectNotFoundError (404) if the project does not exist and
-        ProjectAccessDeniedError (403) if the user is not a member.
+        Raises ProjectNotFoundError (404) if the project does not exist or the
+        user is not a member.
         """
 
         project = await self._projects.get_by_id(project_id)
@@ -141,14 +137,14 @@ class TaskService:
 
         membership = await self._members.get_by_project_and_user(project_id, user_id)
         if membership is None:
-            raise ProjectAccessDeniedError()
+            raise ProjectNotFoundError()
 
     async def _get_accessible_task(self, user_id: UUID, task_id: UUID) -> Task:
         """Fetch a task and verify the user can access its parent project.
 
-        Raises TaskNotFoundError (404) if the task does not exist,
-        ProjectNotFoundError (404) if the parent project is gone, and
-        ProjectAccessDeniedError (403) if the user is not a member.
+        Raises TaskNotFoundError (404) if the task does not exist and
+        ProjectNotFoundError (404) if the parent project is gone or the user is
+        not a member.
         """
 
         task = await self._tasks.get_by_id(task_id)

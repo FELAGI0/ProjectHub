@@ -160,7 +160,8 @@ class ProjectMemberService:
         """Check that user is a member of the project and optionally has a minimum role.
 
         Returns the membership record if checks pass.
-        Raises ProjectNotFoundError / ProjectAccessDeniedError otherwise.
+        Raises ProjectNotFoundError if the project does not exist or the user is not
+        a member.
         """
 
         return await self._verify_project_membership(

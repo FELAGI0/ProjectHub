@@ -112,6 +112,7 @@ class ProjectService:
             is_active=payload.is_active,
         )
         await self._session.commit()
+        await self._session.refresh(project)
         return ProjectResponse.model_validate(project)
 
     async def delete_project(
@@ -186,9 +187,9 @@ class ProjectService:
     ) -> Project:
         """Fetch a project and verify the user has a minimum role.
 
-        Raises ProjectNotFoundError (404) if the project does not exist,
-        ProjectAccessDeniedError (403) if the user is not a member, and
-        InsufficientPermissionError (403) if the user's role is too low.
+        Raises ProjectNotFoundError (404) if the project does not exist or the user
+        is not a member, and InsufficientPermissionError (403) if the user's role
+        is too low.
         """
 
         project, _ = await require_project_membership(

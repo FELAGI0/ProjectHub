@@ -7,7 +7,6 @@ from uuid import UUID
 
 from app.core.exceptions import (
     InsufficientPermissionError,
-    ProjectAccessDeniedError,
     ProjectNotFoundError,
 )
 from app.modules.project_members.models import ProjectRole
@@ -39,8 +38,7 @@ async def require_project_membership(
 
     Returns:
         Tuple of (project, membership). Raises domain errors on failure:
-        - ProjectNotFoundError (404) if project does not exist
-        - ProjectAccessDeniedError (403) if user is not a member
+        - ProjectNotFoundError (404) if project does not exist or user is not a member
         - InsufficientPermissionError (403) if min_role is set and user's role
           is too low
     """
@@ -51,7 +49,7 @@ async def require_project_membership(
 
     membership = await members_repo.get_by_project_and_user(project_id, user_id)
     if membership is None:
-        raise ProjectAccessDeniedError()
+        raise ProjectNotFoundError()
 
     if min_role is not None and membership.role.level < min_role.level:
         raise InsufficientPermissionError()

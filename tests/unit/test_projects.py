@@ -16,7 +16,6 @@ from app.core.exceptions import (
     ConflictError,
     DomainError,
     InsufficientPermissionError,
-    ProjectAccessDeniedError,
     ProjectNotFoundError,
 )
 from app.modules.project_members.models import ProjectMember, ProjectRole
@@ -221,12 +220,12 @@ class TestGetProject:
 
     @pytest.mark.asyncio
     async def test_access_denied(self, service, mock_repo, mock_member_repo) -> None:
-        """ProjectAccessDeniedError is raised for a non-member."""
+        """ProjectNotFoundError is raised for a non-member."""
         project = _make_project()
         mock_repo.get_by_id.return_value = project
         mock_member_repo.get_by_project_and_user.return_value = None
 
-        with pytest.raises(ProjectAccessDeniedError):
+        with pytest.raises(ProjectNotFoundError):
             await service.get_project(_OTHER_ID, _PROJECT_ID)
 
 
@@ -265,12 +264,12 @@ class TestUpdateProject:
 
     @pytest.mark.asyncio
     async def test_access_denied(self, service, mock_repo, mock_member_repo) -> None:
-        """ProjectAccessDeniedError is raised for a non-member."""
+        """ProjectNotFoundError is raised for a non-member."""
         project = _make_project()
         mock_repo.get_by_id.return_value = project
         mock_member_repo.get_by_project_and_user.return_value = None
 
-        with pytest.raises(ProjectAccessDeniedError):
+        with pytest.raises(ProjectNotFoundError):
             await service.update_project(_OWNER_ID, _PROJECT_ID, ProjectUpdateRequest())
 
     @pytest.mark.asyncio
@@ -322,12 +321,12 @@ class TestDeleteProject:
 
     @pytest.mark.asyncio
     async def test_access_denied(self, service, mock_repo, mock_member_repo) -> None:
-        """ProjectAccessDeniedError is raised for a non-member."""
+        """ProjectNotFoundError is raised for a non-member."""
         project = _make_project()
         mock_repo.get_by_id.return_value = project
         mock_member_repo.get_by_project_and_user.return_value = None
 
-        with pytest.raises(ProjectAccessDeniedError):
+        with pytest.raises(ProjectNotFoundError):
             await service.delete_project(_OWNER_ID, _PROJECT_ID)
 
     @pytest.mark.asyncio

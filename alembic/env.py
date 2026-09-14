@@ -21,12 +21,20 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def _resolve_url() -> str:
+    """Return a configured Alembic URL or build one from application settings."""
+
+    return config.get_main_option("sqlalchemy.url") or create_database_url(
+        get_settings()
+    ).render_as_string(hide_password=False)
+
+
 def run_migrations_offline() -> None:
     """Run migrations without a database connection."""
 
-    database_url = create_database_url(get_settings())
+    database_url = _resolve_url()
     context.configure(
-        url=database_url.render_as_string(hide_password=False),
+        url=database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -55,9 +63,7 @@ async def run_async_migrations() -> None:
 
     settings = get_settings()
     configuration = config.get_section(config.config_ini_section, {})
-    configuration["sqlalchemy.url"] = create_database_url(settings).render_as_string(
-        hide_password=False
-    )
+    configuration["sqlalchemy.url"] = _resolve_url()
 
     connectable: AsyncEngine = async_engine_from_config(
         configuration,

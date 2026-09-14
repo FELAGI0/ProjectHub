@@ -27,9 +27,7 @@ class HealthResponse(BaseModel):
     summary="Check application availability",
     description="Returns the application and database health state.",
     responses={
-        status.HTTP_503_SERVICE_UNAVAILABLE: {
-            "description": "Database is unavailable."
-        }
+        status.HTTP_503_SERVICE_UNAVAILABLE: {"description": "Database is unavailable."}
     },
 )
 async def get_health(

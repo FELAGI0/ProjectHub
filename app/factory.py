@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.v1.router import router as api_v1_router
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.exceptions import DomainError
 from app.core.logging import configure_logging
 from app.db.session import close_database_engine
@@ -52,10 +52,10 @@ async def generic_exception_handler(_: Request, exc: Exception) -> JSONResponse:
     )
 
 
-def create_application() -> FastAPI:
+def create_application(settings: Settings | None = None) -> FastAPI:
     """Create and configure the ProjectHub FastAPI application."""
 
-    settings = get_settings()
+    settings = settings or get_settings()
     configure_logging(settings)
     application = FastAPI(
         title=settings.app_name,

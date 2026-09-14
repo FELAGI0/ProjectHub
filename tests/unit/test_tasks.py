@@ -11,7 +11,6 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.core.exceptions import (
-    ProjectAccessDeniedError,
     ProjectNotFoundError,
     TaskNotFoundError,
 )
@@ -198,11 +197,11 @@ class TestListTasks:
     async def test_project_access_denied(
         self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
-        """ProjectAccessDeniedError is raised for a non-member."""
+        """ProjectNotFoundError is raised for a non-member."""
         mock_project_repo.get_by_id.return_value = _make_project()
         mock_member_repo.get_by_project_and_user.return_value = None
 
-        with pytest.raises(ProjectAccessDeniedError):
+        with pytest.raises(ProjectNotFoundError):
             await service.list_tasks(user_id=_OWNER_ID, project_id=_PROJECT_ID)
 
         mock_task_repo.get_project_tasks.assert_not_called()
@@ -254,12 +253,12 @@ class TestCreateTask:
     async def test_project_access_denied(
         self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
-        """ProjectAccessDeniedError is raised for a non-member."""
+        """ProjectNotFoundError is raised for a non-member."""
         mock_project_repo.get_by_id.return_value = _make_project()
         mock_member_repo.get_by_project_and_user.return_value = None
         payload = TaskCreateRequest(title="New Task")
 
-        with pytest.raises(ProjectAccessDeniedError):
+        with pytest.raises(ProjectNotFoundError):
             await service.create_task(_OWNER_ID, _PROJECT_ID, payload)
 
         mock_task_repo.create.assert_not_called()
@@ -314,13 +313,13 @@ class TestGetTask:
     async def test_access_denied(
         self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
-        """ProjectAccessDeniedError is raised for a non-member."""
+        """ProjectNotFoundError is raised for a non-member."""
         task = _make_task()
         mock_task_repo.get_by_id.return_value = task
         mock_project_repo.get_by_id.return_value = _make_project()
         mock_member_repo.get_by_project_and_user.return_value = None
 
-        with pytest.raises(ProjectAccessDeniedError):
+        with pytest.raises(ProjectNotFoundError):
             await service.get_task(_OWNER_ID, _TASK_ID)
 
 
@@ -369,13 +368,13 @@ class TestUpdateTask:
     async def test_access_denied(
         self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
-        """ProjectAccessDeniedError is raised for a non-member."""
+        """ProjectNotFoundError is raised for a non-member."""
         task = _make_task()
         mock_task_repo.get_by_id.return_value = task
         mock_project_repo.get_by_id.return_value = _make_project()
         mock_member_repo.get_by_project_and_user.return_value = None
 
-        with pytest.raises(ProjectAccessDeniedError):
+        with pytest.raises(ProjectNotFoundError):
             await service.update_task(_OWNER_ID, _TASK_ID, TaskUpdateRequest())
 
 
@@ -416,11 +415,11 @@ class TestDeleteTask:
     async def test_access_denied(
         self, service, mock_project_repo, mock_member_repo, mock_task_repo
     ) -> None:
-        """ProjectAccessDeniedError is raised for a non-member."""
+        """ProjectNotFoundError is raised for a non-member."""
         task = _make_task()
         mock_task_repo.get_by_id.return_value = task
         mock_project_repo.get_by_id.return_value = _make_project()
         mock_member_repo.get_by_project_and_user.return_value = None
 
-        with pytest.raises(ProjectAccessDeniedError):
+        with pytest.raises(ProjectNotFoundError):
             await service.delete_task(_OWNER_ID, _TASK_ID)

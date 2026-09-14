@@ -13,7 +13,6 @@ import pytest
 from app.core.exceptions import (
     InsufficientPermissionError,
     MemberNotFoundError,
-    ProjectAccessDeniedError,
     ProjectNotFoundError,
 )
 from app.modules.project_members.models import ProjectMember, ProjectRole
@@ -160,10 +159,10 @@ class TestListMembers:
     async def test_access_denied(
         self, service, mock_member_repo, mock_project_repo
     ) -> None:
-        """ProjectAccessDeniedError is raised for a non-member."""
+        """ProjectNotFoundError is raised for a non-member."""
         mock_member_repo.get_by_project_and_user.return_value = None
 
-        with pytest.raises(ProjectAccessDeniedError):
+        with pytest.raises(ProjectNotFoundError):
             await service.list_members(user_id=_OTHER_ID, project_id=_PROJECT_ID)
 
 

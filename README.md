@@ -2,13 +2,18 @@
 
 **ProjectHub** is a modern, full-stack project management application. Built with FastAPI (backend) and React 19 (frontend), it provides a complete solution for managing projects, tasks, and team collaboration with role-based access control.
 
+🔗 **Live Demo**: [projecthub-frontend-fpfq.onrender.com](https://projecthub-frontend-fpfq.onrender.com)
+
+📚 **API Docs**: [projecthub-ywxi.onrender.com/api/v1/docs](https://projecthub-ywxi.onrender.com/api/v1/docs)
+
 ![Python Version](https://img.shields.io/badge/python-3.13-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green)
 ![React](https://img.shields.io/badge/React-19-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)
-![Tests](https://img.shields.io/badge/tests-237_passed-brightgreen)
+![Tests](https://img.shields.io/badge/tests-243_passed-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-online-brightgreen)](https://projecthub-frontend-fpfq.onrender.com)
 
 ## 📸 Screenshots
 
@@ -16,16 +21,19 @@
 ![Dashboard](docs/screenshots/dashboard.png)
 
 Project overview with metrics, recent projects, and quick actions.
+[Open in production →](https://projecthub-frontend-fpfq.onrender.com)
 
 ### Team Management
 ![Team Management](docs/screenshots/team.png)
 
 Role-based access control: OWNER, ADMIN, MEMBER per project.
+[Open in production →](https://projecthub-frontend-fpfq.onrender.com)
 
 ### API Documentation
 ![Swagger UI](docs/screenshots/swagger.png)
 
 Full OpenAPI documentation available at /api/v1/docs.
+[Open live Swagger →](https://projecthub-ywxi.onrender.com/api/v1/docs)
 
 ## ✨ Features
 
@@ -38,7 +46,7 @@ Full OpenAPI documentation available at /api/v1/docs.
 - **RESTful API**: Clean, documented API following REST principles
 - **Type Safety**: Full type hints coverage with Pydantic validation
 - **Database Migrations**: Alembic integration for schema versioning
-- **Comprehensive Testing**: 237 tests (191 unit + API, 46 integration)
+- **Comprehensive Testing**: 243 tests (191 unit + API, 46 integration)
 - **Integration Tests**: real PostgreSQL via Testcontainers
 - **Logout**: single device and all devices (idempotent)
 - **Transfer Ownership**: atomic transfer with role demotion
@@ -231,6 +239,12 @@ sequenceDiagram
 - **[PyJWT](https://pyjwt.readthedocs.io/)** - JWT authentication
 - **[pwdlib](https://github.com/frankie567/pwdlib)** - Password hashing (Argon2)
 
+### Infrastructure
+- **[Render](https://render.com/)** — backend (Web Service) + frontend (Static Site)
+- **[Neon](https://neon.tech/)** — serverless PostgreSQL
+- **[Docker](https://www.docker.com/)** — containerization
+- **[GitHub Actions](https://github.com/features/actions)** — CI (planned)
+
 ### Frontend
 - **[React](https://react.dev/)** 19 - UI library
 - **[TypeScript](https://www.typescriptlang.org/)** 5.7 - Type safety
@@ -292,6 +306,14 @@ curl http://localhost:8000/api/v1/health
 # Expected: {"status":"ok","database":"ok"}
 ```
 
+### Live Deployment
+
+- **Frontend**: https://projecthub-frontend-fpfq.onrender.com
+- **API**: https://projecthub-ywxi.onrender.com
+- **Swagger UI**: https://projecthub-ywxi.onrender.com/api/v1/docs
+
+Deployed on **Render** (backend + frontend) with **Neon** PostgreSQL.
+
 - API docs: http://localhost:8000/docs
 - Frontend: http://localhost:3000
 
@@ -352,7 +374,7 @@ The frontend automatically handles token refresh and stores tokens securely in l
 ## Testing
 
 ```bash
-make test                # 237 tests (unit + API + integration)
+make test                # 243 tests (unit + API + integration)
 make test-unit           # 191 tests, no Docker, ~5s
 make test-integration    # 46 tests, uses Testcontainers
 make check               # lint + typecheck + test + alembic check

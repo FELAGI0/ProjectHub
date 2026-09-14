@@ -7,6 +7,7 @@
 ![React](https://img.shields.io/badge/React-19-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)
+![Tests](https://img.shields.io/badge/tests-237_passed-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 ## ✨ Features
@@ -20,7 +21,10 @@
 - **RESTful API**: Clean, documented API following REST principles
 - **Type Safety**: Full type hints coverage with Pydantic validation
 - **Database Migrations**: Alembic integration for schema versioning
-- **Comprehensive Testing**: 132+ tests covering all endpoints and business logic
+- **Comprehensive Testing**: 237 tests (191 unit + API, 46 integration)
+- **Integration Tests**: real PostgreSQL via Testcontainers
+- **Logout**: single device and all devices (idempotent)
+- **Transfer Ownership**: atomic transfer with role demotion
 
 ### Frontend
 - **Modern UI**: Responsive interface with dark mode support
@@ -38,26 +42,86 @@
 
 Three-layer architecture following separation of concerns:
 
+```mermaid
+flowchart TD
+    Client --> API[API Layer<br/>app/api/v1]
+    API --> Service[Service Layer<br/>app/modules/*/service.py]
+    Service --> Repository[Repository Layer<br/>app/modules/*/repository.py]
+    Repository --> PostgreSQL[PostgreSQL 16]
 ```
-┌─────────────────────────────────────────┐
-│             API Layer                   │  ← FastAPI routers & endpoints
-│  (app/api/v1/*.py)                      │
-└──────────────┬──────────────────────────┘
-               │
-┌──────────────▼──────────────────────────┐
-│          Service Layer                  │  ← Business logic & authorization
-│  (app/modules/*/service.py)             │
-└──────────────┬──────────────────────────┘
-               │
-┌──────────────▼──────────────────────────┐
-│        Repository Layer                 │  ← Data access & persistence
-│  (app/modules/*/repository.py)          │
-└──────────────┬──────────────────────────┘
-               │
-┌──────────────▼──────────────────────────┐
-│          PostgreSQL                     │  ← Database
-└─────────────────────────────────────────┘
+
+**Responsibilities:**
+- **Router** — HTTP, validation, auth via `Depends`.
+- **Service** — business logic, RBAC checks.
+- **Repository** — SQL queries, no business logic.
+- **Models / Schemas** — SQLAlchemy 2.0 ORM, Pydantic v2.
+
+### Database Schema
+
+```mermaid
+erDiagram
+    users ||--o{ refresh_tokens : owns
+    users ||--o{ projects : owns
+    users ||--o{ project_members : joins
+    projects ||--o{ project_members : has
+    projects ||--o{ tasks : contains
+
+    users {
+        UUID id PK
+        VARCHAR email UK
+        VARCHAR username UK
+        VARCHAR password_hash
+        BOOLEAN is_active
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    refresh_tokens {
+        UUID id PK
+        UUID user_id FK
+        UUID token_id UK
+        VARCHAR token_hash UK
+        TIMESTAMPTZ expires_at
+        TIMESTAMPTZ revoked_at
+        TIMESTAMPTZ created_at
+    }
+
+    projects {
+        UUID id PK
+        UUID owner_id FK
+        VARCHAR name
+        VARCHAR description
+        BOOLEAN is_active
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    project_members {
+        UUID id PK
+        UUID project_id FK
+        UUID user_id FK
+        ENUM role
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    tasks {
+        UUID id PK
+        UUID project_id FK
+        VARCHAR title
+        VARCHAR description
+        ENUM status
+        ENUM priority
+        TIMESTAMPTZ due_date
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
 ```
+
+**Key invariants:**
+- One OWNER per project (partial unique index on `role='OWNER'`).
+- Unique (`project_id`, `user_id`) in `project_members`.
+- Unique (`owner_id`, `name`) in `projects`.
 
 ### Frontend Architecture
 
@@ -79,6 +143,63 @@ frontend/src/
     ├── ui/                 # UI components (shadcn/ui)
     ├── api/                # API client configuration
     └── lib/                # Utility functions
+```
+
+## 🔄 Request Flow
+
+### Refresh Token Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant AuthService
+    participant DB
+
+    Client->>API: POST /auth/login
+    API->>AuthService: login(email, password)
+    AuthService->>DB: SELECT user WHERE email
+    DB-->>AuthService: user
+    AuthService->>AuthService: verify_password
+    AuthService->>DB: INSERT refresh_token
+    AuthService-->>API: access + refresh tokens
+    API-->>Client: 200 {tokens}
+
+    Note over Client,API: Later — access token expired
+
+    Client->>API: POST /auth/refresh
+    API->>AuthService: refresh(token)
+    AuthService->>AuthService: decode JWT, extract jti
+    AuthService->>DB: SELECT refresh_token WHERE token_id
+    DB-->>AuthService: token (not revoked)
+    AuthService->>DB: UPDATE old token SET revoked_at = now()
+    AuthService->>DB: INSERT new refresh_token
+    AuthService-->>API: new tokens
+    API-->>Client: 200 {new tokens}
+```
+
+### Transfer Ownership Flow
+
+```mermaid
+sequenceDiagram
+    participant Owner
+    participant API
+    participant ProjectService
+    participant DB
+
+    Owner->>API: POST /projects/{id}/transfer-ownership
+    API->>ProjectService: transfer_ownership(user_id, project_id, new_owner_id)
+    ProjectService->>DB: SELECT project + membership (min_role=OWNER)
+    DB-->>ProjectService: project, owner_member
+    ProjectService->>ProjectService: check new_owner_id != user_id
+    ProjectService->>DB: SELECT new_owner_member
+    DB-->>ProjectService: new_owner_member
+    ProjectService->>DB: UPDATE owner.role = ADMIN
+    ProjectService->>DB: UPDATE new_owner.role = OWNER
+    ProjectService->>DB: UPDATE project.owner_id
+    Note over ProjectService,DB: Single transaction
+    ProjectService-->>API: success
+    API-->>Owner: 204
 ```
 
 ## 🛠️ Tech Stack
@@ -112,56 +233,25 @@ frontend/src/
 
 ```
 projecthub/
-├── backend/
-│   ├── alembic/                # Database migrations
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── dependencies/   # FastAPI dependencies
-│   │   │   └── v1/             # API v1 endpoints
-│   │   │       ├── auth.py
-│   │   │       ├── projects.py
-│   │   │       ├── tasks.py
-│   │   │       ├── project_members.py
-│   │   │       └── users.py
-│   │   ├── core/
-│   │   │   ├── config.py       # Settings
-│   │   │   ├── exceptions.py   # Domain exceptions
-│   │   │   └── security.py     # JWT & password utilities
-│   │   ├── modules/
-│   │   │   ├── users/          # User domain
-│   │   │   ├── projects/       # Project domain
-│   │   │   ├── tasks/          # Task domain
-│   │   │   └── project_members/# Member domain
-│   │   └── main.py
-│   ├── tests/                  # Backend tests
-│   ├── .env.example
-│   ├── Dockerfile
-│   └── pyproject.toml
-├── frontend/
-│   ├── src/
-│   │   ├── app/                # Application layer
-│   │   │   ├── providers/      # React Query, Theme, Error Boundary
-│   │   │   └── router/         # Routes + guards
-│   │   ├── pages/              # Page components
-│   │   ├── widgets/            # Layout components
-│   │   ├── features/           # Business features
-│   │   │   ├── auth/
-│   │   │   │   ├── api/        # Auth API client
-│   │   │   │   ├── hooks/      # useLogin, useRegister
-│   │   │   │   ├── store/      # Zustand auth store
-│   │   │   │   └── types/      # TypeScript types
-│   │   │   ├── projects/
-│   │   │   ├── tasks/
-│   │   │   └── project-members/
-│   │   └── shared/
-│   │       ├── ui/             # shadcn/ui components
-│   │       ├── api/            # Axios configuration
-│   │       └── lib/            # Utilities
-│   ├── index.html
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── vite.config.ts
-├── compose.yaml                # Docker Compose
+├── app/                        # FastAPI application
+│   ├── api/                    # API routes and dependencies
+│   ├── core/                   # Configuration, security, exceptions
+│   ├── db/                     # Database session and model registry
+│   ├── modules/                # Users, projects, tasks, and members
+│   ├── factory.py
+│   └── main.py
+├── alembic/                    # Database migrations
+├── tests/
+│   ├── api/                    # API tests
+│   ├── unit/                   # Unit tests
+│   └── integration/            # Testcontainers integration tests
+├── frontend/                   # React application
+├── compose.yaml                # Docker Compose services
+├── Dockerfile
+├── Makefile
+├── pyproject.toml
+├── uv.lock
+├── .env.example
 └── README.md
 ```
 
@@ -169,77 +259,24 @@ projecthub/
 
 ### Prerequisites
 
-- **Node.js** 20+ (for frontend)
-- **Python** 3.13+ (for backend)
-- **PostgreSQL** 16+ (or use Docker Compose)
-- **pnpm/npm** (for frontend dependencies)
-- **uv** (recommended for backend) or pip
+- **Docker** with Docker Compose
+- **Python** 3.13+
+- **uv**
 
 ### Installation
 
-#### 1. Clone the repository
 ```bash
-git clone https://github.com/FELAGI0/projecthub.git
-cd projecthub
-```
-
-#### 2. Backend Setup
-
-```bash
-cd backend
-
-# Set up environment variables
+git clone https://github.com/FELAGI0/ProjectHub.git
+cd ProjectHub
 cp .env.example .env
-# Edit .env and set your database credentials and JWT secret
-
-# Install dependencies
-uv sync
-
-# Run database migrations
-uv run alembic upgrade head
-
-# Start the development server
-uv run uvicorn app.main:app --reload
+# Edit JWT_SECRET_KEY and POSTGRES_PASSWORD in .env
+make up
+curl http://localhost:8000/api/v1/health
+# Expected: {"status":"ok","database":"ok"}
 ```
 
-Backend will be available at `http://localhost:8000`
-
-#### 3. Frontend Setup
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start the development server
-npm run dev
-```
-
-Frontend will be available at `http://localhost:5173`
-
-### Using Docker Compose
-
-The easiest way to run the entire stack:
-
-```bash
-# Start all services (API + PostgreSQL + Frontend)
-docker compose up -d
-
-# Run migrations
-docker compose exec api uv run alembic upgrade head
-
-# View logs
-docker compose logs -f
-
-# Stop all services
-docker compose down
-```
-
-Access the application:
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+- API docs: http://localhost:8000/docs
+- Frontend: http://localhost:3000
 
 ## 📚 API Documentation
 
@@ -255,6 +292,7 @@ Interactive API documentation is available at:
 - `POST /api/v1/auth/login` - Login and get JWT tokens
 - `POST /api/v1/auth/refresh` - Refresh access token
 - `POST /api/v1/auth/logout` - Logout (revoke refresh token)
+- `POST /api/v1/auth/logout-all` - Revoke all refresh tokens
 
 #### Projects
 - `GET /api/v1/projects` - List user's projects
@@ -262,6 +300,7 @@ Interactive API documentation is available at:
 - `GET /api/v1/projects/{id}` - Get project details
 - `PATCH /api/v1/projects/{id}` - Update project
 - `DELETE /api/v1/projects/{id}` - Delete project
+- `POST /api/v1/projects/{id}/transfer-ownership` - Transfer ownership
 
 #### Tasks
 - `GET /api/v1/projects/{id}/tasks` - List project tasks
@@ -293,105 +332,114 @@ The frontend automatically handles token refresh and stores tokens securely in l
 | **ADMIN** | + Create/update tasks, add/remove members |
 | **OWNER** | + Update/delete project, change member roles |
 
-## 🧪 Testing
-
-### Backend Tests
+## Testing
 
 ```bash
-cd backend
-
-# Run all tests
-uv run pytest
-
-# Run with coverage
-uv run pytest --cov=app --cov-report=html
-
-# Run specific test file
-uv run pytest tests/api/test_projects.py
+make test                # 237 tests (unit + API + integration)
+make test-unit           # 191 tests, no Docker, ~5s
+make test-integration    # 46 tests, uses Testcontainers
+make check               # lint + typecheck + test + alembic check
 ```
 
-**Test Results**: 132+ automated tests
-- 69 API integration tests
-- 63 Unit tests
-- Full coverage of business logic
+Breakdown:
+- 191 unit + API tests (mocked services / repositories)
+- 46 integration tests with real PostgreSQL
+- 24 of them are a parameterized permissions matrix
 
-### Frontend Tests
+## 🧠 Design Decisions
 
-```bash
-cd frontend
+### 404 vs 403 for non-members
 
-# Run tests (when configured)
-npm run test
+Return `404 Not Found` when caller is not a member of a project,
+not `403 Forbidden`. Prevents leaking project existence to
+unauthorized users. Same approach as GitHub, Vercel, Linear.
 
-# Type checking
-npm run type-check
+### Denormalized `projects.owner_id`
 
-# Linting
-npm run lint
-```
+`owner_id` is kept on the project even though ownership is also
+tracked in `project_members`. This avoids a JOIN on every project
+read. Source of truth is `project_members`; `owner_id` is updated
+atomically on transfer.
+
+### Refresh token rotation
+
+Every `/auth/refresh` call revokes the old refresh token and issues
+a new one. Detects token replay: if an attacker uses an old token,
+it's already revoked → 401.
+
+### Idempotent logout
+
+`POST /auth/logout` returns 204 whether the token was valid, already
+revoked, or never existed. Clients always get success — they just
+want to log out. Only invalid JWT signature returns 401.
+
+### Atomic ownership transfer
+
+Roles and `owner_id` are updated in a single transaction. The
+partial unique index `one_owner_per_project` guarantees at most one
+OWNER even under concurrent transfers.
+
+### Layered architecture without ORM leaks
+
+Routers never touch SQLAlchemy. Services never build raw SQL.
+Repositories never raise HTTP exceptions. Each layer is testable in
+isolation.
+
+### Integration tests with Testcontainers
+
+Unit tests mock everything and can miss SQL-level bugs. Integration
+tests spin up a real PostgreSQL container and verify the full stack.
+
+### Roadmap
+
+- [ ] CI/CD pipeline with GitHub Actions (currently disabled due to billing)
+- [ ] Structlog + request_id middleware
+- [ ] Rate limiting on `/auth/login` and `/auth/register`
+- [ ] Sentry error tracking
+- [ ] Soft delete for projects and tasks
+- [ ] Audit log for role changes
+- [ ] WebSocket notifications for task assignments
 
 ## 🔧 Development
 
-### Backend
-
 ```bash
-# Run linter
-uv run ruff check app tests
-
-# Auto-fix issues
-uv run ruff check --fix app tests
-
-# Type checking
-uv run mypy app
-
-# Run all checks
-uv run ruff check app && uv run mypy app && uv run pytest
-```
-
-### Frontend
-
-```bash
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-
-# Type checking
-npm run type-check
-
-# Linting
-npm run lint
+make lint
+make format
+make typecheck
+make check
 ```
 
 ## 🌍 Environment Variables
 
-### Backend (.env)
 ```bash
-# Application
 APP_NAME=ProjectHub
 DEBUG=false
 LOG_LEVEL=INFO
+API_PORT=8000
 
-# Database
+# API
+API_V1_PREFIX=/api/v1
+
+# PostgreSQL
 POSTGRES_DB=projecthub
 POSTGRES_USER=projecthub
-POSTGRES_PASSWORD=your-secure-password
+POSTGRES_PASSWORD=change-me-for-local-development
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
+POSTGRES_SSL=false
+POSTGRES_EXTERNAL_PORT=5432
 
-# Security
-JWT_SECRET_KEY=your-secret-key-min-32-chars
+# JWT
+JWT_SECRET_KEY=change-me-in-production
+JWT_ALGORITHM=HS256
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
 JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# CORS
+CORS_ORIGINS=["http://localhost:3000","http://localhost:3001","http://localhost:3005"]
 ```
 
-### Frontend (.env)
-```bash
-VITE_API_BASE_URL=http://localhost:8000/api/v1
-```
-
-⚠️ **Security Note**: Never commit `.env` files. Use strong, unique values in production.
+**Security Note**: Never commit `.env` files. Use strong, unique values in production.
 
 ## 📝 License
 

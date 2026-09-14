@@ -64,12 +64,17 @@ async def run_async_migrations() -> None:
     settings = get_settings()
     configuration = config.get_section(config.config_ini_section, {})
     configuration["sqlalchemy.url"] = _resolve_url()
+    connect_args = (
+        {"ssl": True}
+        if settings.database_url is not None
+        else {"ssl": settings.postgres_ssl}
+    )
 
     connectable: AsyncEngine = async_engine_from_config(
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        connect_args={"ssl": settings.postgres_ssl},
+        connect_args=connect_args,
     )
 
     try:

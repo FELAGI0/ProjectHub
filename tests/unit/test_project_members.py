@@ -5,6 +5,7 @@ role-based authorization, and membership enforcement in isolation.
 """
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -40,14 +41,20 @@ def _make_member(
     role: ProjectRole = ProjectRole.MEMBER,
 ) -> ProjectMember:
     """Build a ProjectMember ORM instance for use as a mock return value."""
-    return ProjectMember(
-        id=member_id or _MEMBER_ID,
-        project_id=project_id or _PROJECT_ID,
-        user_id=user_id or _ACTOR_ID,
-        role=role,
-        created_at=datetime.now(UTC),
-        updated_at=datetime.now(UTC),
+    resolved_user_id = user_id or _ACTOR_ID
+    member = mock.MagicMock(spec=ProjectMember)
+    member.id = member_id or _MEMBER_ID
+    member.project_id = project_id or _PROJECT_ID
+    member.user_id = resolved_user_id
+    member.role = role
+    member.created_at = datetime.now(UTC)
+    member.updated_at = datetime.now(UTC)
+    member.user = SimpleNamespace(
+        id=resolved_user_id,
+        username="owner",
+        email="owner@example.com",
     )
+    return member
 
 
 # ---------------------------------------------------------------------------

@@ -27,6 +27,16 @@ class TransferOwnershipRequest(BaseModel):
     new_owner_id: UUID
 
 
+class MemberUserInfo(BaseModel):
+    """Nested user info inside a member response."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    username: str
+    email: str
+
+
 class MemberResponse(BaseModel):
     """Public representation of a project membership."""
 
@@ -35,6 +45,7 @@ class MemberResponse(BaseModel):
     id: UUID
     project_id: UUID
     user_id: UUID
+    user: MemberUserInfo
     role: ProjectRole
     created_at: datetime
     updated_at: datetime

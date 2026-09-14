@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.modules.project_members.models import ProjectMember, ProjectRole
 
@@ -25,6 +26,7 @@ class ProjectMemberRepository:
 
         stmt = (
             select(ProjectMember)
+            .options(selectinload(ProjectMember.user))
             .where(ProjectMember.project_id == project_id)
             .order_by(ProjectMember.created_at.asc())
         )
@@ -47,9 +49,13 @@ class ProjectMemberRepository:
     ) -> ProjectMember | None:
         """Return a specific member record or None."""
 
-        stmt = select(ProjectMember).where(
-            ProjectMember.project_id == project_id,
-            ProjectMember.user_id == user_id,
+        stmt = (
+            select(ProjectMember)
+            .options(selectinload(ProjectMember.user))
+            .where(
+                ProjectMember.project_id == project_id,
+                ProjectMember.user_id == user_id,
+            )
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
@@ -70,7 +76,13 @@ class ProjectMemberRepository:
         )
         self._session.add(member)
         await self._session.flush()
-        return member
+        stmt = (
+            select(ProjectMember)
+            .options(selectinload(ProjectMember.user))
+            .where(ProjectMember.id == member.id)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one()
 
     async def update(
         self,

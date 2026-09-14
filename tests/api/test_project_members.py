@@ -31,6 +31,7 @@ from app.factory import create_application
 from app.modules.project_members.models import ProjectRole
 from app.modules.project_members.schemas import (
     MemberResponse,
+    MemberUserInfo,
     PaginatedMembersResponse,
 )
 from app.modules.users.models import User
@@ -54,6 +55,11 @@ def _make_member_response(
         id=_MEMBER_ID,
         project_id=_PROJECT_ID,
         user_id=user_id or _OWNER_ID,
+        user=MemberUserInfo(
+            id=user_id or _OWNER_ID,
+            username="owner",
+            email="owner@example.com",
+        ),
         role=role,
         created_at=_NOW,
         updated_at=_NOW,
@@ -161,6 +167,9 @@ class TestListMembers:
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 1
+        assert data["items"][0]["user"]["id"] == str(_OWNER_ID)
+        assert data["items"][0]["user"]["username"] == "owner"
+        assert data["items"][0]["user"]["email"] == "owner@example.com"
         assert data["total"] == 1
 
     @pytest.mark.asyncio
@@ -227,6 +236,9 @@ class TestAddMember:
 
         assert response.status_code == 201
         assert response.json()["user_id"] == str(_OTHER_ID)
+        assert response.json()["user"]["id"] == str(_OTHER_ID)
+        assert response.json()["user"]["username"] == "owner"
+        assert response.json()["user"]["email"] == "owner@example.com"
 
     @pytest.mark.asyncio
     async def test_already_exists(
@@ -305,6 +317,9 @@ class TestUpdateMemberRole:
 
         assert response.status_code == 200
         assert response.json()["role"] == "ADMIN"
+        assert response.json()["user"]["id"] == str(_OWNER_ID)
+        assert response.json()["user"]["username"] == "owner"
+        assert response.json()["user"]["email"] == "owner@example.com"
 
     @pytest.mark.asyncio
     async def test_not_found(self, client, mock_service, mock_current_user) -> None:

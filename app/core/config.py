@@ -1,8 +1,9 @@
 """Application settings."""
 
 from functools import lru_cache
+from typing import Self
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,9 +23,10 @@ class Settings(BaseSettings):
         pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
     )
     api_v1_prefix: str = "/api/v1"
+    database_url: str | None = None
     postgres_db: str = "projecthub"
     postgres_user: str = "projecthub"
-    postgres_password: str
+    postgres_password: str | None = None
     postgres_host: str = "localhost"
     postgres_port: int = Field(default=5432, gt=0, le=65535)
     postgres_ssl: bool = False
@@ -37,6 +39,14 @@ class Settings(BaseSettings):
         "http://localhost:3001",
         "http://localhost:3005",
     ]
+
+    @model_validator(mode="after")
+    def validate_postgres_password(self) -> Self:
+        if self.database_url is None and self.postgres_password is None:
+            raise ValueError(
+                "postgres_password is required when database_url is not set"
+            )
+        return self
 
 
 @lru_cache

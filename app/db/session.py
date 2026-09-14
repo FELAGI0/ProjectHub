@@ -2,7 +2,7 @@
 
 from collections.abc import AsyncGenerator
 
-from sqlalchemy.engine import URL
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
 
@@ -11,6 +11,10 @@ from app.core.config import Settings, get_settings
 
 def create_database_url(settings: Settings) -> URL:
     """Build a safe SQLAlchemy URL for the PostgreSQL async driver."""
+
+    if settings.database_url is not None:
+        database_url = make_url(settings.database_url)
+        return database_url.set(drivername="postgresql+asyncpg")
 
     return URL.create(
         drivername="postgresql+asyncpg",

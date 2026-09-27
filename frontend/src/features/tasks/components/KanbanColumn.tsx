@@ -1,3 +1,4 @@
+
 import { useDroppable } from '@dnd-kit/core'
 import {
   SortableContext,
@@ -7,6 +8,7 @@ import type { Task } from '../types'
 import { TaskCard } from './TaskCard'
 import { EmptyState } from '@/shared/ui/empty-state'
 import { ListTodo } from 'lucide-react'
+import { cn } from '@/shared/utils/cn'
 
 interface KanbanColumnProps {
   id: string
@@ -16,30 +18,47 @@ interface KanbanColumnProps {
 }
 
 export function KanbanColumn({ id, title, tasks, projectId }: KanbanColumnProps) {
-  const { setNodeRef } = useDroppable({ id })
+  const { setNodeRef, isOver } = useDroppable({ id })
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between px-2">
-        <h3 className="font-semibold">{title}</h3>
-        <span className="text-sm text-muted-foreground">{tasks.length}</span>
+    <div className="flex flex-col gap-2.5">
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              'h-1.5 w-1.5 rounded-full',
+              id === 'TODO' && 'bg-muted-foreground/50',
+              id === 'IN_PROGRESS' && 'bg-blue-500/70',
+              id === 'DONE' && 'bg-success/80'
+            )}
+          />
+          <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+        </div>
+        <span className="rounded border border-border/70 bg-secondary/60 px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
+          {tasks.length}
+        </span>
       </div>
 
       <div
         ref={setNodeRef}
-        className="flex flex-col gap-2 min-h-[400px] rounded-lg border-2 border-dashed border-border bg-accent/5 p-3 transition-colors hover:border-primary/30"
+        className={cn(
+          'flex min-h-[420px] flex-col gap-2 rounded-xl border bg-secondary/30 p-3 transition-colors',
+          isOver
+            ? 'border-primary/40 bg-primary/5'
+            : 'border-border/60 hover:border-border'
+        )}
       >
         <SortableContext
           items={tasks.map((t) => t.id)}
           strategy={verticalListSortingStrategy}
         >
           {tasks.length === 0 ? (
-            <div className="flex items-center justify-center h-32">
+            <div className="flex items-center justify-center py-10">
               <EmptyState
-                icon={<ListTodo className="h-8 w-8" />}
+                icon={<ListTodo className="h-6 w-6" />}
                 title="Нет задач"
                 description="В этой колонке пока нет задач"
-                className="py-4"
+                className="py-0"
               />
             </div>
           ) : (

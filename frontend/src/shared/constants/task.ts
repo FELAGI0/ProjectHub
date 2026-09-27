@@ -26,13 +26,13 @@ export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
 }
 
 export const TASK_PRIORITY_COLORS: Record<TaskPriority, string> = {
-  LOW: 'text-blue-600 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-950 dark:border-blue-800',
-  MEDIUM: 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:text-yellow-400 dark:bg-yellow-950 dark:border-yellow-800',
-  HIGH: 'text-red-600 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-950 dark:border-red-800',
+  LOW: 'border-blue-500/25 bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  MEDIUM: 'border-yellow-500/25 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
+  HIGH: 'border-red-500/25 bg-red-500/10 text-red-600 dark:text-red-400',
 }
 
 export const TASK_STATUS_COLORS: Record<TaskStatus, string> = {
-  TODO: 'text-gray-600 bg-gray-50 border-gray-200 dark:text-gray-400 dark:bg-gray-950 dark:border-gray-800',
-  IN_PROGRESS: 'text-blue-600 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-950 dark:border-blue-800',
-  DONE: 'text-green-600 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-950 dark:border-green-800',
+  TODO: 'border-border bg-secondary/60 text-muted-foreground',
+  IN_PROGRESS: 'border-blue-500/25 bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  DONE: 'border-success/25 bg-success/10 text-success',
 }

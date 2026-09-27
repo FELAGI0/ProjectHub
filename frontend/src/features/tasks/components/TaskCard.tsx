@@ -1,3 +1,4 @@
+
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useNavigate } from 'react-router-dom'
@@ -27,7 +28,7 @@ export function TaskCard({ task, projectId, isDragging }: TaskCardProps) {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isSortableDragging ? 0.5 : 1,
+    opacity: isSortableDragging ? 0.45 : 1,
   }
 
   const handleClick = () => {
@@ -46,24 +47,24 @@ export function TaskCard({ task, projectId, isDragging }: TaskCardProps) {
       {...attributes}
       {...listeners}
       className={cn(
-        'rounded-lg border border-border bg-background p-3 cursor-grab active:cursor-grabbing hover:shadow-lg hover:scale-[1.02] transition-all duration-200',
-        isDragging && 'shadow-xl ring-2 ring-primary scale-105'
+        'group rounded-xl border border-border/70 bg-card p-3.5 shadow-sm transition-[border-color,box-shadow,transform] duration-200 hover:border-border hover:shadow-md active:cursor-grabbing',
+        isDragging && 'scale-[1.03] border-primary/50 shadow-lg'
       )}
       onClick={handleClick}
     >
-      <div className="space-y-2">
-        <div className="flex items-start justify-between gap-2">
-          <h4 className="font-medium text-sm line-clamp-2">{task.title}</h4>
+      <div className="space-y-2.5">
+        <div className="flex items-start justify-between gap-2.5">
+          <h4 className="line-clamp-2 text-sm font-medium leading-snug">{task.title}</h4>
           <Badge
-            variant="secondary"
-            className={cn('shrink-0 text-xs', TASK_PRIORITY_COLORS[task.priority])}
+            variant="outline"
+            className={cn('shrink-0 text-[0.6875rem]', TASK_PRIORITY_COLORS[task.priority])}
           >
             {TASK_PRIORITY_LABELS[task.priority]}
           </Badge>
         </div>
 
         {task.description && (
-          <p className="text-xs text-muted-foreground line-clamp-2">
+          <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
             {task.description}
           </p>
         )}
@@ -71,7 +72,7 @@ export function TaskCard({ task, projectId, isDragging }: TaskCardProps) {
         {dueDate && (
           <div
             className={cn(
-              'flex items-center gap-1 text-xs',
+              'flex items-center gap-1.5 text-[0.6875rem] font-medium',
               isOverdue ? 'text-destructive' : 'text-muted-foreground'
             )}
           >

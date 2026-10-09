@@ -108,7 +108,7 @@ def mock_service(app):
 
 
 # ---------------------------------------------------------------------------
-# Register — POST /api/v1/auth/register
+# Register: POST /api/v1/auth/register
 # ---------------------------------------------------------------------------
 
 
@@ -175,7 +175,7 @@ async def test_register_duplicate_username(client, mock_service) -> None:
     assert response.json() == {"detail": "A user with these details already exists."}
 
 
-# --- validation (no mock needed — Pydantic rejects before the handler) ---
+# --- validation (no mock needed, Pydantic rejects before the handler) ---
 
 
 @pytest.mark.asyncio
@@ -221,7 +221,7 @@ async def test_register_password_too_short(client) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Login — POST /api/v1/auth/login
+# Login: POST /api/v1/auth/login
 # ---------------------------------------------------------------------------
 
 
@@ -262,7 +262,7 @@ async def test_login_wrong_password(client, mock_service) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Refresh — POST /api/v1/auth/refresh
+# Refresh: POST /api/v1/auth/refresh
 # ---------------------------------------------------------------------------
 
 
@@ -297,7 +297,7 @@ async def test_refresh_invalid_token(client, mock_service) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Logout — POST /api/v1/auth/logout
+# Logout: POST /api/v1/auth/logout
 # ---------------------------------------------------------------------------
 
 
@@ -391,7 +391,7 @@ async def test_logout_all_no_auth(client, mock_service, mock_no_auth) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Get current user — GET /api/v1/users/me
+# Get current user: GET /api/v1/users/me
 # ---------------------------------------------------------------------------
 
 

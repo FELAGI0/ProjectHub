@@ -2,9 +2,9 @@
 
 **ProjectHub** is a modern, full-stack project management application. Built with FastAPI (backend) and React 19 (frontend), it provides a complete solution for managing projects, tasks, and team collaboration with role-based access control.
 
-🔗 **Live Demo**: [projecthub-frontend-fpfq.onrender.com](https://projecthub-frontend-fpfq.onrender.com)
+**Live Demo**: [projecthub-frontend-fpfq.onrender.com](https://projecthub-frontend-fpfq.onrender.com)
 
-📚 **API Docs**: [projecthub-ywxi.onrender.com/api/v1/docs](https://projecthub-ywxi.onrender.com/api/v1/docs)
+**API Docs**: [projecthub-ywxi.onrender.com/api/v1/docs](https://projecthub-ywxi.onrender.com/api/v1/docs)
 
 ![Python Version](https://img.shields.io/badge/python-3.13-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green)
@@ -15,7 +15,7 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-online-brightgreen)](https://projecthub-frontend-fpfq.onrender.com)
 
-## 📸 Screenshots
+## Screenshots
 
 ### Dashboard
 ![Dashboard](docs/screenshots/dashboard.png)
@@ -35,7 +35,7 @@ Role-based access control: OWNER, ADMIN, MEMBER per project.
 Full OpenAPI documentation available at /api/v1/docs.
 [Open live Swagger →](https://projecthub-ywxi.onrender.com/api/v1/docs)
 
-## ✨ Features
+## Features
 
 ### Backend
 - **User Management**: Registration, authentication with JWT tokens (access + refresh)
@@ -61,7 +61,7 @@ Full OpenAPI documentation available at /api/v1/docs.
 - **Accessibility**: WCAG-compliant components with proper ARIA attributes
 - **Type Safety**: Full TypeScript coverage with strict mode
 
-## 🏗️ Architecture
+## Architecture
 
 ### Backend Architecture
 
@@ -76,10 +76,10 @@ flowchart TD
 ```
 
 **Responsibilities:**
-- **Router** — HTTP, validation, auth via `Depends`.
-- **Service** — business logic, RBAC checks.
-- **Repository** — SQL queries, no business logic.
-- **Models / Schemas** — SQLAlchemy 2.0 ORM, Pydantic v2.
+- **Router** - HTTP, validation, auth via `Depends`.
+- **Service** - business logic, RBAC checks.
+- **Repository** - SQL queries, no business logic.
+- **Models / Schemas** - SQLAlchemy 2.0 ORM, Pydantic v2.
 
 ### Database Schema
 
@@ -170,7 +170,7 @@ frontend/src/
     └── lib/                # Utility functions
 ```
 
-## 🔄 Request Flow
+## Request Flow
 
 ### Refresh Token Flow
 
@@ -190,7 +190,7 @@ sequenceDiagram
     AuthService-->>API: access + refresh tokens
     API-->>Client: 200 {tokens}
 
-    Note over Client,API: Later — access token expired
+    Note over Client,API: Later, access token expired
 
     Client->>API: POST /auth/refresh
     API->>AuthService: refresh(token)
@@ -227,7 +227,7 @@ sequenceDiagram
     API-->>Owner: 204
 ```
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Backend
 - **[FastAPI](https://fastapi.tiangolo.com/)** 0.115+ - Modern async web framework
@@ -240,10 +240,10 @@ sequenceDiagram
 - **[pwdlib](https://github.com/frankie567/pwdlib)** - Password hashing (Argon2)
 
 ### Infrastructure
-- **[Render](https://render.com/)** — backend (Web Service) + frontend (Static Site)
-- **[Neon](https://neon.tech/)** — serverless PostgreSQL
-- **[Docker](https://www.docker.com/)** — containerization
-- **[GitHub Actions](https://github.com/features/actions)** — CI (planned)
+- **[Render](https://render.com/)** - backend (Web Service) + frontend (Static Site)
+- **[Neon](https://neon.tech/)** - serverless PostgreSQL
+- **[Docker](https://www.docker.com/)** - containerization
+- **[GitHub Actions](https://github.com/features/actions)** - CI (planned)
 
 ### Frontend
 - **[React](https://react.dev/)** 19 - UI library
@@ -260,7 +260,7 @@ sequenceDiagram
 - **[Sonner](https://sonner.emilkowal.ski/)** - Toast notifications
 - **[Lucide React](https://lucide.dev/)** - Icons
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 projecthub/
@@ -286,7 +286,7 @@ projecthub/
 └── README.md
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -317,7 +317,7 @@ Deployed on **Render** (backend + frontend) with **Neon** PostgreSQL.
 - API docs: http://localhost:8000/docs
 - Frontend: http://localhost:3000
 
-## 📚 API Documentation
+## API Documentation
 
 Interactive API documentation is available at:
 
@@ -354,7 +354,7 @@ Interactive API documentation is available at:
 - `PATCH /api/v1/projects/{id}/members/{user_id}` - Update member role
 - `DELETE /api/v1/projects/{id}/members/{user_id}` - Remove member
 
-## 🔐 Authentication & Authorization
+## Authentication & Authorization
 
 ### JWT Authentication
 Two-token strategy for secure authentication:
@@ -385,7 +385,7 @@ Breakdown:
 - 46 integration tests with real PostgreSQL
 - 24 of them are a parameterized permissions matrix
 
-## 🧠 Design Decisions
+## Design Decisions
 
 ### 404 vs 403 for non-members
 
@@ -409,7 +409,7 @@ it's already revoked → 401.
 ### Idempotent logout
 
 `POST /auth/logout` returns 204 whether the token was valid, already
-revoked, or never existed. Clients always get success — they just
+revoked, or never existed. Clients always get success. They just
 want to log out. Only invalid JWT signature returns 401.
 
 ### Atomic ownership transfer
@@ -439,7 +439,7 @@ tests spin up a real PostgreSQL container and verify the full stack.
 - [ ] Audit log for role changes
 - [ ] WebSocket notifications for task assignments
 
-## 🔧 Development
+## Development
 
 ```bash
 make lint
@@ -448,7 +448,7 @@ make typecheck
 make check
 ```
 
-## 🌍 Environment Variables
+## Environment Variables
 
 ```bash
 APP_NAME=ProjectHub
@@ -480,11 +480,11 @@ CORS_ORIGINS=["http://localhost:3000","http://localhost:3001","http://localhost:
 
 **Security Note**: Never commit `.env` files. Use strong, unique values in production.
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
@@ -494,10 +494,10 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for det
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📧 Support
+## Support
 
 For questions or issues, please open an issue on GitHub.
 
 ---
 
-Made with ❤️ using Python, TypeScript, FastAPI, and React
+Made with Python, TypeScript, FastAPI, and React

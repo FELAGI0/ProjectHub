@@ -220,7 +220,7 @@ class TestCreateToken:
 
 
 class TestTokenHashing:
-    """hash_token — SHA-256 digest of the raw token."""
+    """hash_token: SHA-256 digest of the raw token."""
 
     def test_hash_token_length(self) -> None:
         """SHA-256 hex digest is exactly 64 characters."""
